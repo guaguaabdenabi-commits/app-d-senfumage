@@ -1,0 +1,6 @@
+{
+  "name": "Désenfumage Expert - Dimensionnement Sécurité Incendie",
+  "description": "Calcul et dimensionnement réglementaire des installations de désenfumage naturel et mécanique selon le type de bâtiment (ERP, Code du Travail, Habitation, ICPE, IGH, Parcs de stationnement).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
