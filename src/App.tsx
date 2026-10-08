@@ -34,7 +34,6 @@ import {
   Copy
 } from 'lucide-react';
 
-// Composant interne pour le Cahier d'aide
 const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   if (!isOpen) return null;
   return (
@@ -50,7 +49,6 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
           </button>
         </div>
         <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6 text-sm text-slate-700">
-          
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
               <Plus className="w-5 h-5 text-emerald-600" /> 
@@ -78,7 +76,6 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
             </h3>
             <p>Allez dans l'onglet <strong>"Dossier & Bilan Global"</strong> et cliquez sur la corbeille rouge à droite de la ligne correspondante.</p>
           </div>
-
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-end bg-slate-50">
           <button onClick={onClose} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm">
@@ -488,7 +485,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Bouton d'Aide Flottant */}
       <button
         onClick={() => setIsHelpOpen(true)}
         className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-[0_4px_20px_rgba(37,99,235,0.4)] hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center z-40 group border-2 border-white"
@@ -536,17 +532,8 @@ export default function App() {
       </footer>
 
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
-
-      <RegulatoryGuideModal
-        isOpen={isGuideOpen}
-        onClose={() => setIsGuideOpen(false)}
-      />
-
-      <InspectionChecklist
-        isOpen={isChecklistOpen}
-        onClose={() => setIsChecklistOpen(false)}
-        buildingName={buildingName}
-      />
+      <RegulatoryGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+      <InspectionChecklist isOpen={isChecklistOpen} onClose={() => setIsChecklistOpen(false)} buildingName={buildingName} />
     </div>
   );
 }
