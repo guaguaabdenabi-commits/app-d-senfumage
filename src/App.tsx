@@ -43,7 +43,7 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-blue-50">
           <h2 className="text-lg font-bold text-blue-900 flex items-center gap-2">
             <HelpCircle className="w-6 h-6 text-blue-600" />
-            Cahier d'aide & Prise en main
+            Cahier d'aide & Prise en main (G.P-T)
           </h2>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors">
             <X className="w-5 h-5" />
@@ -58,7 +58,7 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
             </h3>
             <p>Il y a deux façons d'ajouter un nouveau local à étudier :</p>
             <ul className="list-disc pl-5 space-y-1 text-slate-600">
-              <li>Cliquez sur le bouton <strong>"Dossier & Bilan Global"</strong> (en haut à droite des zones), puis descendez pour cliquer sur <strong>"Ajouter un nouveau local"</strong>.</li>
+              <li>Cliquez sur le bouton <strong>"Dossier & Bilan Global"</strong> (en haut à droite), puis descendez pour cliquer sur <strong>"Ajouter un nouveau local"</strong>.</li>
               <li>Ou utilisez simplement le bouton <strong>"+ Ajouter Local"</strong> tout en haut à droite de l'écran principal.</li>
             </ul>
           </div>
@@ -66,17 +66,9 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
               <Layers className="w-5 h-5 text-amber-500" /> 
-              Comment naviguer entre les zones ?
+              Comment naviguer et renommer ?
             </h3>
-            <p>Juste au-dessus des calculs, vous avez une barre contenant toutes vos zones <strong>(Locaux étudiés)</strong>. Cliquez simplement sur le nom de la zone que vous souhaitez afficher ou modifier. La zone active est encadrée en noir.</p>
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-              <Copy className="w-5 h-5 text-blue-500" /> 
-              Comment dupliquer une zone ?
-            </h3>
-            <p>Si vous avez plusieurs locaux identiques (ex: plusieurs réserves), cliquez sur le bouton <strong>"Dossier & Bilan Global"</strong>, trouvez la zone dans le tableau récapitulatif, et cliquez sur l'icône de duplication bleue. Vous n'aurez plus qu'à ajuster le nom.</p>
+            <p>Cliquez sur l'onglet du local souhaité dans la barre grise. Pour le renommer, modifiez simplement le champ texte tout en haut de la section <strong>"2. Paramètres de la Zone / Local"</strong> à gauche.</p>
           </div>
 
           <div className="space-y-2">
@@ -84,12 +76,7 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
               <Trash2 className="w-5 h-5 text-red-500" /> 
               Comment supprimer une zone ?
             </h3>
-            <p>Pour supprimer un local qui ne vous sert plus :</p>
-            <ol className="list-decimal pl-5 space-y-1 text-slate-600">
-              <li>Allez dans l'onglet <strong>"Dossier & Bilan Global"</strong>.</li>
-              <li>Dans le grand tableau récapitulatif, cliquez sur la <strong>corbeille rouge</strong> à droite de la ligne correspondante.</li>
-              <li className="text-red-600 font-medium italic">Note : L'application vous empêchera de supprimer s'il ne reste qu'une seule zone. Il faut toujours au moins un local.</li>
-            </ol>
+            <p>Allez dans l'onglet <strong>"Dossier & Bilan Global"</strong> et cliquez sur la corbeille rouge à droite de la ligne correspondante.</p>
           </div>
 
         </div>
@@ -121,57 +108,6 @@ const INITIAL_ROOMS: RoomInput[] = [
     isBlind: false,
     selectedDENFCId: 'denfc-140-140',
   },
-  {
-    id: 'room-2',
-    name: 'Réserve Aveugle RDC',
-    buildingCategory: 'erp',
-    erpType: 'M',
-    erpCategory: '1',
-    spaceKind: 'local',
-    area: 180,
-    length: 15,
-    width: 12,
-    ceilingHeight: 3.5,
-    clearSmokeHeight: 1.8,
-    mode: 'mecanique',
-    isBasement: false,
-    isBlind: true,
-    selectedDENFCId: 'denfc-120-120',
-  },
-  {
-    id: 'room-3',
-    name: 'Circulation Centrale R+1',
-    buildingCategory: 'erp',
-    erpType: 'M',
-    erpCategory: '1',
-    spaceKind: 'circulation',
-    area: 90,
-    length: 45,
-    width: 2,
-    ceilingHeight: 2.8,
-    clearSmokeHeight: 2.0,
-    mode: 'mecanique',
-    isBasement: false,
-    isBlind: false,
-    selectedDENFCId: 'denfc-100-100',
-  },
-  {
-    id: 'room-4',
-    name: 'Cage d\'Escalier Nord',
-    buildingCategory: 'erp',
-    erpType: 'M',
-    erpCategory: '1',
-    spaceKind: 'escalier',
-    area: 32,
-    length: 8,
-    width: 4,
-    ceilingHeight: 12.0,
-    clearSmokeHeight: 2.5,
-    mode: 'naturel',
-    isBasement: false,
-    isBlind: false,
-    selectedDENFCId: 'denfc-100-100',
-  },
 ];
 
 export default function App() {
@@ -182,7 +118,7 @@ export default function App() {
 
   const [buildingName, setBuildingName] = useState('Centre Commercial & Tertiaire Grand Ouest');
   const [address, setAddress] = useState('24 Avenue de la Grande Armée, 75017 Paris');
-  const [author, setAuthor] = useState('Cabinet Ingénierie Sécurité Incendie');
+  const [author, setAuthor] = useState('G.P-T Bureau d\'Études CVC & Sécurité Incendie');
 
   const [rooms, setRooms] = useState<RoomInput[]>(INITIAL_ROOMS);
   const [activeRoomId, setActiveRoomId] = useState<string>(INITIAL_ROOMS[0].id);
@@ -192,7 +128,7 @@ export default function App() {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isChecklistOpen, setIsChecklistOpen] = useState(false);
   const [isPrintView, setIsPrintView] = useState(false);
-  const [isHelpOpen, setIsHelpOpen] = useState(false); // NOUVEAU: Etat pour le cahier d'aide
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const activeRoom = rooms.find((r) => r.id === activeRoomId) || rooms[0];
   const activeCalc = calculateRoomDesenfumage(activeRoom);
@@ -271,38 +207,6 @@ export default function App() {
           isBlind: false,
           selectedDENFCId: 'denfc-150-150',
         },
-        {
-          id: 'r2',
-          name: 'Supermarché / Alimentaire',
-          buildingCategory: 'erp',
-          erpType: 'M',
-          erpCategory: '1',
-          spaceKind: 'local',
-          area: 1200,
-          length: 40,
-          width: 30,
-          ceilingHeight: 4.2,
-          mode: 'naturel',
-          isBasement: false,
-          isBlind: false,
-          selectedDENFCId: 'denfc-140-140',
-        },
-        {
-          id: 'r3',
-          name: 'Circulation de Desserte Arrière',
-          buildingCategory: 'erp',
-          erpType: 'M',
-          erpCategory: '1',
-          spaceKind: 'circulation',
-          area: 120,
-          length: 50,
-          width: 2.4,
-          ceilingHeight: 3.0,
-          mode: 'mecanique',
-          isBasement: false,
-          isBlind: true,
-          selectedDENFCId: 'denfc-100-100',
-        },
       ]);
       setActiveRoomId('r1');
     } else if (type === 'ert_office') {
@@ -323,34 +227,6 @@ export default function App() {
           isBlind: false,
           selectedDENFCId: 'denfc-120-120',
         },
-        {
-          id: 'r2',
-          name: 'Archives Techniques Sous-sol',
-          buildingCategory: 'ert',
-          spaceKind: 'local',
-          area: 150,
-          length: 15,
-          width: 10,
-          ceilingHeight: 2.8,
-          mode: 'mecanique',
-          isBasement: true,
-          isBlind: true,
-          selectedDENFCId: 'denfc-100-100',
-        },
-        {
-          id: 'r3',
-          name: 'Escalier d\'Évacuation Principal',
-          buildingCategory: 'ert',
-          spaceKind: 'escalier',
-          area: 28,
-          length: 7,
-          width: 4,
-          ceilingHeight: 9.0,
-          mode: 'naturel',
-          isBasement: false,
-          isBlind: false,
-          selectedDENFCId: 'denfc-100-100',
-        },
       ]);
       setActiveRoomId('r1');
     } else if (type === 'icpe_warehouse') {
@@ -364,20 +240,6 @@ export default function App() {
           spaceKind: 'cellule_stockage',
           area: 3200,
           length: 80,
-          width: 40,
-          ceilingHeight: 11.5,
-          mode: 'naturel',
-          isBasement: false,
-          isBlind: false,
-          selectedDENFCId: 'denfc-150-200',
-        },
-        {
-          id: 'r2',
-          name: 'Cellule Logistique B',
-          buildingCategory: 'icpe',
-          spaceKind: 'cellule_stockage',
-          area: 2400,
-          length: 60,
           width: 40,
           ceilingHeight: 11.5,
           mode: 'naturel',
@@ -403,21 +265,6 @@ export default function App() {
           width: 5,
           ceilingHeight: 21.0,
           mode: 'naturel',
-          isBasement: false,
-          isBlind: false,
-          selectedDENFCId: 'denfc-100-100',
-        },
-        {
-          id: 'r2',
-          name: 'Circulation Protégée Étage 3',
-          buildingCategory: 'habitation',
-          habitationFamily: '3B',
-          spaceKind: 'circulation',
-          area: 45,
-          length: 22,
-          width: 2,
-          ceilingHeight: 2.6,
-          mode: 'mecanique',
           isBasement: false,
           isBlind: false,
           selectedDENFCId: 'denfc-100-100',
@@ -641,7 +488,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Bouton d'Aide Flottant NOUVEAU */}
+      {/* Bouton d'Aide Flottant */}
       <button
         onClick={() => setIsHelpOpen(true)}
         className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-[0_4px_20px_rgba(37,99,235,0.4)] hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center z-40 group border-2 border-white"
@@ -658,7 +505,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <Flame className="w-4 h-4 text-amber-600" />
             <span className="font-semibold text-slate-700">
-              Désenfumage Expert
+              Désenfumage Expert (G.P-T)
             </span>
             <span>· Conforme aux règles IT 246, R. 4216, ICPE 1510 & NF S 61-937</span>
           </div>
