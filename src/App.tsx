@@ -175,7 +175,6 @@ const INITIAL_ROOMS: RoomInput[] = [
 ];
 
 export default function App() {
-  // Global Project States
   const [category, setCategory] = useState<BuildingCategory>('erp');
   const [erpType, setERPType] = useState<ERPType>('M');
   const [erpCategory, setERPCategory] = useState<ERPCategory>('1');
@@ -188,20 +187,16 @@ export default function App() {
   const [rooms, setRooms] = useState<RoomInput[]>(INITIAL_ROOMS);
   const [activeRoomId, setActiveRoomId] = useState<string>(INITIAL_ROOMS[0].id);
 
-  // Active view tab in main view
   const [activeMainTab, setActiveMainTab] = useState<'calc' | 'all-rooms'>('calc');
 
-  // Modals & Print
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isChecklistOpen, setIsChecklistOpen] = useState(false);
   const [isPrintView, setIsPrintView] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false); // NOUVEAU: Etat pour le cahier d'aide
 
-  // Active room data
   const activeRoom = rooms.find((r) => r.id === activeRoomId) || rooms[0];
   const activeCalc = calculateRoomDesenfumage(activeRoom);
 
-  // Handlers for rooms
   const handleUpdateActiveRoom = (updated: RoomInput) => {
     setRooms((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   };
@@ -253,7 +248,6 @@ export default function App() {
     }
   };
 
-  // Presets loader
   const handleLoadTemplate = (type: 'erp_mall' | 'ert_office' | 'habitation_3b' | 'icpe_warehouse' | 'parking') => {
     if (type === 'erp_mall') {
       setCategory('erp');
@@ -454,7 +448,6 @@ export default function App() {
     }
   };
 
-  // If in printable report mode
   if (isPrintView) {
     return (
       <PrintReport
@@ -473,7 +466,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-white relative">
-      {/* Top Application Header */}
       <Header
         buildingName={buildingName}
         onOpenGuide={() => setIsGuideOpen(true)}
@@ -483,9 +475,7 @@ export default function App() {
         roomCount={rooms.length}
       />
 
-      {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
-        {/* Rapid Templates Toolbar */}
         <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
@@ -532,7 +522,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* 1. Building Selector */}
         <BuildingSelector
           category={category}
           erpType={erpType}
@@ -540,7 +529,6 @@ export default function App() {
           habitationFamily={habitationFamily}
           onChangeCategory={(c) => {
             setCategory(c);
-            // sync active room
             handleUpdateActiveRoom({ ...activeRoom, buildingCategory: c });
           }}
           onChangeERPType={(t) => {
@@ -552,4 +540,166 @@ export default function App() {
             handleUpdateActiveRoom({ ...activeRoom, erpCategory: cat });
           }}
           onChangeHabitationFamily={(f) => {
-            setHabitation
+            setHabitationFamily(f);
+            handleUpdateActiveRoom({ ...activeRoom, habitationFamily: f });
+          }}
+        />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <span className="text-xs font-bold text-slate-700 whitespace-nowrap mr-1">
+              Locaux étudiés :
+            </span>
+            {rooms.map((r, index) => {
+              const isCurrent = r.id === activeRoomId;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveRoomId(r.id);
+                    setActiveMainTab('calc');
+                  }}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                    isCurrent
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  <span>{r.name || `Local #${index + 1}`}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                    isCurrent ? 'bg-amber-400 text-slate-950 font-bold' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {r.area}m²
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="inline-flex p-1 bg-slate-100 rounded-lg shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveMainTab('calc')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                activeMainTab === 'calc'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Calculs & Schéma
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveMainTab('all-rooms')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                activeMainTab === 'all-rooms'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Dossier & Bilan Global
+            </button>
+          </div>
+        </div>
+
+        {activeMainTab === 'calc' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-5 space-y-6">
+              <RoomForm
+                room={activeRoom}
+                onChangeRoom={handleUpdateActiveRoom}
+                buildingCategory={category}
+              />
+            </div>
+
+            <div className="lg:col-span-7 space-y-6">
+              <ResultsView room={activeRoom} calc={activeCalc} />
+              <SchematicDiagram room={activeRoom} calc={activeCalc} />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <ProjectSummary
+              rooms={rooms}
+              activeRoomId={activeRoomId}
+              onSelectRoom={(id) => {
+                setActiveRoomId(id);
+                setActiveMainTab('calc');
+              }}
+              onAddRoom={handleAddRoom}
+              onDuplicateRoom={handleDuplicateRoom}
+              onDeleteRoom={handleDeleteRoom}
+              buildingName={buildingName}
+              onChangeBuildingName={setBuildingName}
+              address={address}
+              onChangeAddress={setAddress}
+              author={author}
+              onChangeAuthor={setAuthor}
+            />
+          </div>
+        )}
+      </main>
+
+      {/* Bouton d'Aide Flottant NOUVEAU */}
+      <button
+        onClick={() => setIsHelpOpen(true)}
+        className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-[0_4px_20px_rgba(37,99,235,0.4)] hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center z-40 group border-2 border-white"
+        title="Besoin d'aide ?"
+      >
+        <HelpCircle className="w-7 h-7" />
+        <span className="absolute right-16 bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
+          Cahier d'aide rapide
+        </span>
+      </button>
+
+      <footer className="mt-12 bg-white border-t border-slate-200 py-6 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Flame className="w-4 h-4 text-amber-600" />
+            <span className="font-semibold text-slate-700">
+              Désenfumage Expert
+            </span>
+            <span>· Conforme aux règles IT 246, R. 4216, ICPE 1510 & NF S 61-937</span>
+          </div>
+          <div className="flex items-center gap-4 text-slate-500">
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(true)}
+              className="hover:text-amber-600 font-medium"
+            >
+              Mémento Réglementaire
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsChecklistOpen(true)}
+              className="hover:text-amber-600 font-medium"
+            >
+              Fiche de Contrôle
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPrintView(true)}
+              className="hover:text-amber-600 font-medium"
+            >
+              Imprimer Rapport
+            </button>
+          </div>
+        </div>
+      </footer>
+
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+
+      <RegulatoryGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+      />
+
+      <InspectionChecklist
+        isOpen={isChecklistOpen}
+        onClose={() => setIsChecklistOpen(false)}
+        buildingName={buildingName}
+      />
+    </div>
+  );
+}
