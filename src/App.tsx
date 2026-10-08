@@ -27,8 +27,81 @@ import {
   CheckCircle2, 
   SlidersHorizontal,
   ChevronRight,
-  FileText
+  FileText,
+  HelpCircle,
+  X,
+  Trash2,
+  Copy
 } from 'lucide-react';
+
+// Composant interne pour le Cahier d'aide
+const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-blue-50">
+          <h2 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+            <HelpCircle className="w-6 h-6 text-blue-600" />
+            Cahier d'aide & Prise en main
+          </h2>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6 text-sm text-slate-700">
+          
+          <div className="space-y-2">
+            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+              <Plus className="w-5 h-5 text-emerald-600" /> 
+              Comment ajouter une nouvelle zone ?
+            </h3>
+            <p>Il y a deux façons d'ajouter un nouveau local à étudier :</p>
+            <ul className="list-disc pl-5 space-y-1 text-slate-600">
+              <li>Cliquez sur le bouton <strong>"Dossier & Bilan Global"</strong> (en haut à droite des zones), puis descendez pour cliquer sur <strong>"Ajouter un nouveau local"</strong>.</li>
+              <li>Ou utilisez simplement le bouton <strong>"+ Ajouter Local"</strong> tout en haut à droite de l'écran principal.</li>
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+              <Layers className="w-5 h-5 text-amber-500" /> 
+              Comment naviguer entre les zones ?
+            </h3>
+            <p>Juste au-dessus des calculs, vous avez une barre contenant toutes vos zones <strong>(Locaux étudiés)</strong>. Cliquez simplement sur le nom de la zone que vous souhaitez afficher ou modifier. La zone active est encadrée en noir.</p>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+              <Copy className="w-5 h-5 text-blue-500" /> 
+              Comment dupliquer une zone ?
+            </h3>
+            <p>Si vous avez plusieurs locaux identiques (ex: plusieurs réserves), cliquez sur le bouton <strong>"Dossier & Bilan Global"</strong>, trouvez la zone dans le tableau récapitulatif, et cliquez sur l'icône de duplication bleue. Vous n'aurez plus qu'à ajuster le nom.</p>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-500" /> 
+              Comment supprimer une zone ?
+            </h3>
+            <p>Pour supprimer un local qui ne vous sert plus :</p>
+            <ol className="list-decimal pl-5 space-y-1 text-slate-600">
+              <li>Allez dans l'onglet <strong>"Dossier & Bilan Global"</strong>.</li>
+              <li>Dans le grand tableau récapitulatif, cliquez sur la <strong>corbeille rouge</strong> à droite de la ligne correspondante.</li>
+              <li className="text-red-600 font-medium italic">Note : L'application vous empêchera de supprimer s'il ne reste qu'une seule zone. Il faut toujours au moins un local.</li>
+            </ol>
+          </div>
+
+        </div>
+        <div className="p-4 border-t border-slate-200 flex justify-end bg-slate-50">
+          <button onClick={onClose} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm">
+            J'ai compris
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const INITIAL_ROOMS: RoomInput[] = [
   {
@@ -122,6 +195,7 @@ export default function App() {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isChecklistOpen, setIsChecklistOpen] = useState(false);
   const [isPrintView, setIsPrintView] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false); // NOUVEAU: Etat pour le cahier d'aide
 
   // Active room data
   const activeRoom = rooms.find((r) => r.id === activeRoomId) || rooms[0];
@@ -398,7 +472,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-white">
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-white relative">
       {/* Top Application Header */}
       <Header
         buildingName={buildingName}
@@ -410,7 +484,7 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
         {/* Rapid Templates Toolbar */}
         <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -478,161 +552,4 @@ export default function App() {
             handleUpdateActiveRoom({ ...activeRoom, erpCategory: cat });
           }}
           onChangeHabitationFamily={(f) => {
-            setHabitationFamily(f);
-            handleUpdateActiveRoom({ ...activeRoom, habitationFamily: f });
-          }}
-        />
-
-        {/* Room Navigation Pill Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-xs font-bold text-slate-700 whitespace-nowrap mr-1">
-              Locaux étudiés :
-            </span>
-            {rooms.map((r, index) => {
-              const isCurrent = r.id === activeRoomId;
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveRoomId(r.id);
-                    setActiveMainTab('calc');
-                  }}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                    isCurrent
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  <span>{r.name || `Local #${index + 1}`}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
-                    isCurrent ? 'bg-amber-400 text-slate-950 font-bold' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {r.area}m²
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Tab switcher: Dimensionnement vs Recap */}
-          <div className="inline-flex p-1 bg-slate-100 rounded-lg shrink-0">
-            <button
-              type="button"
-              onClick={() => setActiveMainTab('calc')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                activeMainTab === 'calc'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Calculs & Schéma
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveMainTab('all-rooms')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                activeMainTab === 'all-rooms'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Dossier & Bilan Global
-            </button>
-          </div>
-        </div>
-
-        {/* View Mode 1: Individual Room Calculator & Results & Schematic */}
-        {activeMainTab === 'calc' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left Column: Room Form */}
-            <div className="lg:col-span-5 space-y-6">
-              <RoomForm
-                room={activeRoom}
-                onChangeRoom={handleUpdateActiveRoom}
-                buildingCategory={category}
-              />
-            </div>
-
-            {/* Right Column: Calculation Results & Visual Schematic */}
-            <div className="lg:col-span-7 space-y-6">
-              <ResultsView room={activeRoom} calc={activeCalc} />
-              <SchematicDiagram room={activeRoom} calc={activeCalc} />
-            </div>
-          </div>
-        ) : (
-          /* View Mode 2: Multi-Room Management & Bill of Quantities */
-          <div>
-            <ProjectSummary
-              rooms={rooms}
-              activeRoomId={activeRoomId}
-              onSelectRoom={(id) => {
-                setActiveRoomId(id);
-                setActiveMainTab('calc');
-              }}
-              onAddRoom={handleAddRoom}
-              onDuplicateRoom={handleDuplicateRoom}
-              onDeleteRoom={handleDeleteRoom}
-              buildingName={buildingName}
-              onChangeBuildingName={setBuildingName}
-              address={address}
-              onChangeAddress={setAddress}
-              author={author}
-              onChangeAuthor={setAuthor}
-            />
-          </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="mt-12 bg-white border-t border-slate-200 py-6 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Flame className="w-4 h-4 text-amber-600" />
-            <span className="font-semibold text-slate-700">
-              Désenfumage Expert
-            </span>
-            <span>· Conforme aux règles IT 246, R. 4216, ICPE 1510 & NF S 61-937</span>
-          </div>
-          <div className="flex items-center gap-4 text-slate-500">
-            <button
-              type="button"
-              onClick={() => setIsGuideOpen(true)}
-              className="hover:text-amber-600 font-medium"
-            >
-              Mémento Réglementaire
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsChecklistOpen(true)}
-              className="hover:text-amber-600 font-medium"
-            >
-              Fiche de Contrôle
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsPrintView(true)}
-              className="hover:text-amber-600 font-medium"
-            >
-              Imprimer Rapport
-            </button>
-          </div>
-        </div>
-      </footer>
-
-      {/* Regulatory Handbook Modal */}
-      <RegulatoryGuideModal
-        isOpen={isGuideOpen}
-        onClose={() => setIsGuideOpen(false)}
-      />
-
-      {/* Inspection & Maintenance Checklist Modal */}
-      <InspectionChecklist
-        isOpen={isChecklistOpen}
-        onClose={() => setIsChecklistOpen(false)}
-        buildingName={buildingName}
-      />
-    </div>
-  );
-}
+            setHabitation
