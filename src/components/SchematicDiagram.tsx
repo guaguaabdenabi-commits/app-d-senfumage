@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RoomInput, CalculationResult } from '../types/desenfumage';
-import { Layers, AlertTriangle, Plus, Minus, CheckCircle2, Move, Ruler, DoorOpen } from 'lucide-react';
+import { Layers, AlertTriangle, Plus, Minus, CheckCircle2, Move, Ruler } from 'lucide-react';
 
 interface SchematicDiagramProps {
   room: RoomInput;
@@ -49,7 +49,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
   const offsetX = (800 - drawW) / 2;
   const offsetY = (450 - drawH) / 2;
 
-  // Initialisation des positions automatiques
+  // Initialisation des positions
   useEffect(() => {
     const newElements: SchematicElement[] = [];
     const extCols = Math.max(1, Math.ceil(Math.sqrt(customExtCount * (L / W))));
@@ -87,7 +87,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
     setElements(newElements);
   }, [customExtCount, customInletCount, doorCount, L, W, scale, offsetX, offsetY, drawW, drawH]);
 
-  // Logique de Glisser-Déposer (Drag & Drop)
+  // Drag & Drop Handlers
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setDraggingId(id);
@@ -105,8 +105,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
         let nx = cursor.x;
         let ny = cursor.y;
 
-        // Limiter aux murs si c'est une porte
-        if (el.type === 'door') {
+        if (el.type === 'door' || el.type === 'an') {
           const dt = Math.abs(ny - offsetY);
           const db = Math.abs(ny - (offsetY + drawH));
           const dl = Math.abs(nx - offsetX);
@@ -118,19 +117,15 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
           else nx = offsetX + drawW;
         }
 
-        // Limiter à l'intérieur du local
         nx = Math.max(offsetX, Math.min(offsetX + drawW, nx));
         ny = Math.max(offsetY, Math.min(offsetY + drawH, ny));
-
         return { ...el, x: nx, y: ny };
       }
       return el;
     }));
   };
 
-  const handleMouseUp = () => {
-    setDraggingId(null);
-  };
+  const handleMouseUp = () => setDraggingId(null);
 
   const requiredCols = Math.ceil(length / 30);
   const requiredRows = Math.ceil(width / 30);
@@ -159,7 +154,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">Glissez-déposez les grilles avec votre souris pour ajuster.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Glissez-déposez les grilles. La Coupe se mettra à jour !</p>
         </div>
         <div className="inline-flex p-1 bg-slate-100 rounded-lg self-start sm:self-auto shrink-0">
           <button type="button" onClick={() => setViewMode('section')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'section' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>Coupe</button>
@@ -178,7 +173,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-sky-700">Amenée d&apos;Air (AN)</span>
+            <span className="text-[11px] font-bold text-sky-700">Amenée d'Air (AN)</span>
             <div className="flex items-center gap-1 bg-white border border-slate-200 rounded p-1">
               <button onClick={() => setCustomInletCount(Math.max(1, customInletCount - 1))} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Minus className="w-3 h-3" /></button>
               <span className="text-xs font-bold text-slate-800 w-6 text-center">{customInletCount}</span>
@@ -206,7 +201,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
           <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <h4 className="text-xs font-bold text-rose-900 uppercase">Erreur IT 246 : Espacement &gt; 30 mètres</h4>
-            <p className="text-[11px] text-rose-700 mt-1">Au minimum {minRequiredGeometricPoints} point(s) d&apos;extraction requis pour couvrir cette géométrie sans zone morte.</p>
+            <p className="text-[11px] text-rose-700 mt-1">Au minimum {minRequiredGeometricPoints} point(s) d'extraction requis pour couvrir cette géométrie sans zone morte.</p>
           </div>
         </div>
       )}
@@ -234,27 +229,78 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
             <rect x="0" y="0" width="800" height="450" fill="url(#outsideGradient)" />
             <rect x="80" y="360" width="640" height="25" fill="#334155" />
             <line x1="80" y1="360" x2="720" y2="360" stroke="#94a3b8" strokeWidth="2" />
+            <text x="85" y="378" fill="#cbd5e1" fontSize="11">Plancher / Niveau fini (Sol ±0.00)</text>
             <rect x="80" y="80" width="640" height="25" fill="#334155" />
             <line x1="80" y1="105" x2="720" y2="105" stroke="#94a3b8" strokeWidth="2" />
+            <text x="85" y="98" fill="#cbd5e1" fontSize="11">Toiture / Sous-face plafond (+{ceilingHeight.toFixed(2)} m)</text>
             <rect x="70" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
             <rect x="715" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
+            
             <g>
               <rect x="85" y={smokeTop} width="630" height={smokePx} fill="url(#smokeGradient)" />
               <line x1="85" y1={smokeBottom} x2="715" y2={smokeBottom} stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" />
-              <text x="400" y={smokeBottom - 8} textAnchor="middle" fill="#fbbf24" fontSize="12" fontWeight="bold">H&apos; = {clearH.toFixed(2)} m</text>
+              <text x="400" y={smokeBottom - 8} textAnchor="middle" fill="#fbbf24" fontSize="12" fontWeight="bold">H' = {clearH.toFixed(2)} m</text>
               <text x="400" y={smokeTop + smokePx / 2} textAnchor="middle" fill="#f87171" fontSize="13" fontWeight="bold">E = {smokeE.toFixed(2)} m</text>
               
-              {needsCanton && [300, 500].map((xPos, idx) => (
-                <g key={idx}>
-                  <line x1={xPos} y1="105" x2={xPos} y2={105 + screenPx} stroke="#ef4444" strokeWidth="5" strokeLinecap="square" />
-                </g>
-              ))}
+              {/* Écrans de Cantonnement Synchronisés */}
+              {needsCanton && Array.from({ length: cantonment.cantonCount - 1 }).map((_, idx) => {
+                const xPos = 80 + (idx + 1) * (640 / cantonment.cantonCount);
+                return (
+                  <g key={`sec-canton-${idx}`}>
+                    <line x1={xPos} y1="105" x2={xPos} y2={105 + screenPx} stroke="#ef4444" strokeWidth="5" strokeLinecap="square" />
+                    <text x={xPos + 8} y={105 + (screenPx / 2)} fill="#fca5a5" fontSize="10" fontWeight="bold">Écran</text>
+                  </g>
+                );
+              })}
 
-              <rect x="220" y="90" width="60" height="25" fill="#dc2626" stroke="#fecaca" strokeWidth="1.5" rx="2" />
-              <text x="250" y="106" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="bold">EXT</text>
-              
-              <rect x="70" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
-              <rect x="715" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
+              {/* Extraction Synchronisée au Plan */}
+              {elements.filter(e => e.type === 'ext').map(el => {
+                const vx = 80 + ((el.x - offsetX) / drawW) * 640;
+                return (
+                  <g key={`sec-${el.id}`}>
+                    {mode === 'naturel' ? (
+                      <>
+                        <rect x={vx - 22} y="75" width="44" height="30" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="3" />
+                        <line x1={vx - 22} y1="75" x2={vx + 15} y2="50" stroke="#ffffff" strokeWidth="2.5" />
+                        <path d={`M ${vx} 70 L ${vx} 40 M ${vx - 5} 50 L ${vx} 40 L ${vx + 5} 50`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
+                        <text x={vx} y="30" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">DENFC</text>
+                      </>
+                    ) : (
+                      <>
+                        <rect x={vx - 30} y="90" width="60" height="25" fill="#dc2626" stroke="#fecaca" strokeWidth="1.5" rx="2" />
+                        <line x1={vx - 20} y1="95" x2={vx - 20} y2="110" stroke="#fff" strokeWidth="1" />
+                        <line x1={vx + 20} y1="95" x2={vx + 20} y2="110" stroke="#fff" strokeWidth="1" />
+                        <path d={`M ${vx} 90 L ${vx} 45 M ${vx - 6} 58 L ${vx} 45 L ${vx + 6} 58`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
+                        <text x={vx} y="35" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">EXT</text>
+                      </>
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* Amenées d'air Synchronisées */}
+              {elements.filter(e => e.type === 'an').map(el => {
+                const vx = 80 + ((el.x - offsetX) / drawW) * 640;
+                return (
+                  <g key={`sec-${el.id}`}>
+                    <rect x={vx - 15} y="305" width="30" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
+                    <path d={`M ${vx} 340 L ${vx} 315 M ${vx - 6} 325 L ${vx} 315 L ${vx + 6} 325`} stroke="#38bdf8" strokeWidth="2.5" fill="none" />
+                    <text x={vx} y="300" textAnchor="middle" fill="#38bdf8" fontSize="10" fontWeight="bold">AN</text>
+                  </g>
+                );
+              })}
+
+              {/* Portes Synchronisées */}
+              {elements.filter(e => e.type === 'door').map(el => {
+                const vx = 80 + ((el.x - offsetX) / drawW) * 640;
+                return (
+                  <g key={`sec-${el.id}`}>
+                    <rect x={vx - 20} y="220" width="40" height="140" fill="#16a34a" stroke="#4ade80" strokeWidth="1.5" rx="2" />
+                    <circle cx={vx + 10} cy="290" r="3" fill="#4ade80" />
+                    <text x={vx} y="210" textAnchor="middle" fill="#4ade80" fontSize="9" fontWeight="bold">PORTE</text>
+                  </g>
+                );
+              })}
             </g>
           </svg>
         ) : (
@@ -267,7 +313,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
           >
-            {/* Dimensions Globales */}
             {showDims && (
               <>
                 <line x1={offsetX} y1={offsetY - 20} x2={offsetX + drawW} y2={offsetY - 20} stroke="#94a3b8" strokeWidth="1" />
@@ -282,19 +327,13 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
               </>
             )}
 
-            {/* Murs du local */}
             <rect x={offsetX} y={offsetY} width={drawW} height={drawH} fill="#0f172a" stroke={hasGeometricError ? "#ef4444" : "#475569"} strokeWidth={hasGeometricError ? "4" : "3"} />
 
-            {/* Rendu des éléments (Grilles, AN, Portes) */}
             {elements.map((el) => {
               const isDragging = draggingId === el.id;
               
               return (
-                <g 
-                  key={el.id} 
-                  onMouseDown={(e) => handleMouseDown(e, el.id)}
-                  style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-                >
+                <g key={el.id} onMouseDown={(e) => handleMouseDown(e, el.id)} style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
                   {el.type === 'ext' && (
                     <>
                       <circle cx={el.x} cy={el.y} r={15 * scale} fill={hasGeometricError ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.1)"} stroke={hasGeometricError ? "#ef4444" : "#10b981"} strokeDasharray="4 4" strokeWidth="1" className="pointer-events-none" />
@@ -315,20 +354,15 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
                     </>
                   )}
 
-                  {/* Cotations Dynamiques (si activées) */}
                   {showDims && (
                     <g className="pointer-events-none">
                       <line x1={offsetX} y1={el.y} x2={el.x - 15} y2={el.y} stroke="#64748b" strokeWidth="1" strokeDasharray="2 2" />
                       <rect x={offsetX + (el.x - offsetX)/2 - 12} y={el.y - 6} width="24" height="12" fill="#1e293b" rx="2" />
-                      <text x={offsetX + (el.x - offsetX)/2} y={el.y + 3} fill="#94a3b8" fontSize="8" textAnchor="middle">
-                        {((el.x - offsetX) / scale).toFixed(1)}m
-                      </text>
-
+                      <text x={offsetX + (el.x - offsetX)/2} y={el.y + 3} fill="#94a3b8" fontSize="8" textAnchor="middle">{((el.x - offsetX) / scale).toFixed(1)}m</text>
+                      
                       <line x1={el.x} y1={offsetY} x2={el.x} y2={el.y - 15} stroke="#64748b" strokeWidth="1" strokeDasharray="2 2" />
                       <rect x={el.x - 12} y={offsetY + (el.y - offsetY)/2 - 6} width="24" height="12" fill="#1e293b" rx="2" />
-                      <text x={el.x} y={offsetY + (el.y - offsetY)/2 + 3} fill="#94a3b8" fontSize="8" textAnchor="middle">
-                        {((el.y - offsetY) / scale).toFixed(1)}m
-                      </text>
+                      <text x={el.x} y={offsetY + (el.y - offsetY)/2 + 3} fill="#94a3b8" fontSize="8" textAnchor="middle">{((el.y - offsetY) / scale).toFixed(1)}m</text>
                     </g>
                   )}
                 </g>
@@ -340,9 +374,9 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
 
       <div className="flex flex-wrap items-center gap-4 pt-1 text-[11px] text-slate-600 font-medium">
         <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-red-600 rounded-sm" />Extraction (Rayon 15m)</div>
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-sky-600 rounded-sm" />Amenée d&apos;Air</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-sky-600 rounded-sm" />Amenée d'Air</div>
         <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-green-600 rounded-sm" />Porte (Sortie)</div>
-        <div className="ml-auto text-slate-400"><Move className="w-3 h-3 inline mr-1" />Déplacez les éléments à la souris</div>
+        <div className="ml-auto text-slate-400"><Move className="w-3 h-3 inline mr-1" />Déplacez les éléments avec la souris</div>
       </div>
     </div>
   );
