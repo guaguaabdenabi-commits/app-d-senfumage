@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RoomInput, CalculationResult } from '../types/desenfumage';
-import { Layers, Eye, Wind, ShieldAlert, ArrowUp, ArrowDown } from 'lucide-react';
+import { Layers, Wind, AlertTriangle, ShieldCheck, Plus, Minus, Maximize2, CheckCircle2 } from 'lucide-react';
 
 interface SchematicDiagramProps {
   room: RoomInput;
@@ -10,32 +10,77 @@ interface SchematicDiagramProps {
 export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }) => {
   const [viewMode, setViewMode] = useState<'section' | 'plan'>('section');
 
-  const { ceilingHeight, area, length, width, mode, spaceKind } = room;
+  const { ceilingHeight, length, width, mode } = room;
   const { cantonment, natural, mechanical } = calc;
 
-  // View parameters for cross-section
+  // Hauteurs pour la coupe
   const clearH = cantonment.clearHeightM;
   const smokeE = cantonment.smokeLayerThicknessM;
   const screenDepth = cantonment.screenDepthM;
   const needsCanton = cantonment.required;
 
+  // Calculs par défaut pour l'implantation
+  const defaultExtCount = mode === 'naturel' 
+    ? natural.denfcCountTotal 
+    : mechanical.suggestedExtractionGrilleCount;
+    
+  const defaultInletCount = mode === 'naturel' 
+    ? Math.max(1, Math.ceil(natural.airInletGeometricAreaM2 / 2))
+    : Math.max(1, Math.ceil(mechanical.airInletGrilleMinSectionM2 / 0.5));
+
+  // États pour permettre au Chef de forcer / modifier le nombre de grilles
+  const [customExtCount, setCustomExtCount] = useState<number>(defaultExtCount);
+  const [customInletCount, setCustomInletCount] = useState<number>(defaultInletCount);
+
+  // Synchronisation si le calcul principal change (changement de surface, de mode, etc)
+  useEffect(() => {
+    setCustomExtCount(defaultExtCount);
+    setCustomInletCount(defaultInletCount);
+  }, [defaultExtCount, defaultInletCount]);
+
+  // VÉRIFICATION NORMATIVE GÉOMÉTRIQUE (IT 246 § 3.6)
+  // Distance max entre 2 exutoires = 30m. Distance mur = 15m.
+  // Il faut donc quadriller le local.
+  const requiredCols = Math.ceil(length / 30);
+  const requiredRows = Math.ceil(width / 30);
+  const minRequiredGeometricPoints = requiredCols * requiredRows;
+  const hasGeometricError = customExtCount < minRequiredGeometricPoints;
+
+  // Géométrie pour le dessin de la Vue en Plan
+  const maxDrawW = 680;
+  const maxDrawH = 320;
+  const L = Math.max(length, 1);
+  const W = Math.max(width, 1);
+  const scale = Math.min(maxDrawW / L, maxDrawH / W);
+  const drawW = L * scale;
+  const drawH = W * scale;
+  const offsetX = (800 - drawW) / 2;
+  const offsetY = (450 - drawH) / 2;
+
+  // Répartition en grille des points d'extraction
+  const extCols = Math.max(1, Math.ceil(Math.sqrt(customExtCount * (L / W))));
+  const extRows = Math.max(1, Math.ceil(customExtCount / extCols));
+  const distX = L / extCols;
+  const distY = W / extRows;
+  const spacingExceeded = distX > 30 || distY > 30;
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-3">
+    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
         <div>
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-amber-600" />
             <h3 className="text-base font-semibold text-slate-800">
-              Schéma Technique Dynamique & Stratification
+              Schéma Technique & Implantation
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Représentation normative conforme IT 246 / NF S 61-937
+            Validation normative des espacements IT 246
           </p>
         </div>
 
         {/* View mode toggle */}
-        <div className="inline-flex p-1 bg-slate-100 rounded-lg self-start sm:self-auto">
+        <div className="inline-flex p-1 bg-slate-100 rounded-lg self-start sm:self-auto shrink-0">
           <button
             type="button"
             onClick={() => setViewMode('section')}
@@ -45,7 +90,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Vue en Coupe (Élévation)
+            Vue en Coupe
           </button>
           <button
             type="button"
@@ -56,563 +101,225 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Vue en Plan (Implantation)
+            Vue en Plan / Répartition
           </button>
         </div>
       </div>
 
-      {viewMode === 'section' ? (
-        <div>
-          {/* SVG Section Diagram */}
-          <div className="relative w-full aspect-[16/9] max-h-[380px] bg-slate-900 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center p-2">
-            <svg
-              viewBox="0 0 800 450"
-              className="w-full h-full select-none"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <defs>
-                {/* Smoke gradient */}
-                <linearGradient id="smokeGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#1e293b" stopOpacity="0.95" />
-                  <stop offset="60%" stopColor="#334155" stopOpacity="0.75" />
-                  <stop offset="100%" stopColor="#475569" stopOpacity="0.1" />
-                </linearGradient>
-
-                {/* Sky / Outside */}
-                <linearGradient id="outsideGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0f172a" />
-                  <stop offset="100%" stopColor="#1e293b" />
-                </linearGradient>
-
-                {/* Pattern for insulation / slab */}
-                <pattern id="concretePattern" width="10" height="10" patternUnits="userSpaceOnUse">
-                  <path d="M 0 10 L 10 0 M 0 0 L 10 10" fill="none" stroke="#334155" strokeWidth="0.5" />
-                </pattern>
-              </defs>
-
-              {/* Background */}
-              <rect x="0" y="0" width="800" height="450" fill="url(#outsideGradient)" />
-
-              {/* Floor slab */}
-              <rect x="80" y="360" width="640" height="25" fill="#334155" />
-              <line x1="80" y1="360" x2="720" y2="360" stroke="#94a3b8" strokeWidth="2" />
-              <text x="85" y="378" fill="#cbd5e1" fontSize="11" fontFamily="sans-serif">
-                Plancher / Niveau fini (Sol ±0.00)
-              </text>
-
-              {/* Ceiling / Roof slab */}
-              <rect x="80" y="80" width="640" height="25" fill="#334155" />
-              <line x1="80" y1="105" x2="720" y2="105" stroke="#94a3b8" strokeWidth="2" />
-              <text x="85" y="98" fill="#cbd5e1" fontSize="11" fontFamily="sans-serif">
-                Toiture / Sous-face plafond (+{ceilingHeight.toFixed(2)} m)
-              </text>
-
-              {/* Side walls */}
-              <rect x="70" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
-              <rect x="715" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
-
-              {/* Smoke Layer Zone */}
-              {/* Calculate proportional heights: Floor is 360, Ceiling is 105, total height = 255 px */}
-              {(() => {
-                const totalPx = 255;
-                const smokePx = (smokeE / ceilingHeight) * totalPx;
-                const clearPx = (clearH / ceilingHeight) * totalPx;
-                const smokeTop = 105;
-                const smokeBottom = 105 + smokePx;
-
-                return (
-                  <g>
-                    {/* Smoke mass */}
-                    <rect
-                      x="85"
-                      y={smokeTop}
-                      width="630"
-                      height={smokePx}
-                      fill="url(#smokeGradient)"
-                    />
-
-                    {/* Stratification separation line (dashed) */}
-                    <line
-                      x1="85"
-                      y1={smokeBottom}
-                      x2="715"
-                      y2={smokeBottom}
-                      stroke="#f59e0b"
-                      strokeWidth="2"
-                      strokeDasharray="6 4"
-                    />
-                    <text
-                      x="400"
-                      y={smokeBottom - 8}
-                      textAnchor="middle"
-                      fill="#fbbf24"
-                      fontSize="12"
-                      fontWeight="bold"
-                    >
-                      Interface de fumée (H' = {clearH.toFixed(2)} m au-dessus du sol)
-                    </text>
-
-                    {/* Smoke layer text */}
-                    <text
-                      x="400"
-                      y={smokeTop + smokePx / 2}
-                      textAnchor="middle"
-                      fill="#f87171"
-                      fontSize="13"
-                      fontWeight="bold"
-                    >
-                      Zone enfumée (Épaisseur E = {smokeE.toFixed(2)} m)
-                    </text>
-
-                    {/* Clear zone text */}
-                    <text
-                      x="400"
-                      y={smokeBottom + clearPx / 2}
-                      textAnchor="middle"
-                      fill="#38bdf8"
-                      fontSize="13"
-                      fontWeight="600"
-                    >
-                      Zone libre de fumée (Hauteur H' = {clearH.toFixed(2)} m)
-                    </text>
-
-                    {/* Cantonment screens (if required) */}
-                    {needsCanton && (
-                      <g>
-                        {/* Cantonment screen at 1/3 and 2/3 */}
-                        {[300, 500].map((xPos, idx) => {
-                          const screenPx = (screenDepth / ceilingHeight) * totalPx;
-                          return (
-                            <g key={idx}>
-                              <line
-                                x1={xPos}
-                                y1="105"
-                                x2={xPos}
-                                y2={105 + screenPx}
-                                stroke="#ef4444"
-                                strokeWidth="5"
-                                strokeLinecap="square"
-                              />
-                              <rect
-                                x={xPos - 5}
-                                y={105 + screenPx - 4}
-                                width="10"
-                                height="8"
-                                fill="#dc2626"
-                                rx="2"
-                              />
-                              <text
-                                x={xPos + 8}
-                                y={105 + screenPx / 2}
-                                fill="#fca5a5"
-                                fontSize="10"
-                                fontWeight="bold"
-                              >
-                                Écran de cantonnement
-                              </text>
-                              <text
-                                x={xPos + 8}
-                                y={105 + screenPx / 2 + 12}
-                                fill="#fca5a5"
-                                fontSize="9"
-                              >
-                                Retombée ≥ {screenDepth.toFixed(2)} m
-                              </text>
-                            </g>
-                          );
-                        })}
-                      </g>
-                    )}
-
-                    {/* Extraction equipment on roof or upper wall */}
-                    {mode === 'naturel' ? (
-                      <g>
-                        {/* DENFC Vents */}
-                        {[200, 400, 600].map((vx, i) => (
-                          <g key={i}>
-                            <rect
-                              x={vx - 22}
-                              y="75"
-                              width="44"
-                              height="30"
-                              fill="#ef4444"
-                              stroke="#ffffff"
-                              strokeWidth="1.5"
-                              rx="3"
-                            />
-                            {/* Open lid angle */}
-                            <line
-                              x1={vx - 22}
-                              y1="75"
-                              x2={vx + 15}
-                              y2="50"
-                              stroke="#ffffff"
-                              strokeWidth="2.5"
-                            />
-                            {/* Red evacuation arrows */}
-                            <path
-                              d={`M ${vx} 70 L ${vx} 40 M ${vx - 5} 50 L ${vx} 40 L ${vx + 5} 50`}
-                              stroke="#ef4444"
-                              strokeWidth="2.5"
-                              fill="none"
-                            />
-                            <text
-                              x={vx}
-                              y="30"
-                              textAnchor="middle"
-                              fill="#f87171"
-                              fontSize="10"
-                              fontWeight="bold"
-                            >
-                              DENFC
-                            </text>
-                          </g>
-                        ))}
-                      </g>
-                    ) : (
-                      <g>
-                        {/* Mechanical extraction ducts and grilles */}
-                        {[220, 580].map((mx, i) => (
-                          <g key={i}>
-                            <rect
-                              x={mx - 30}
-                              y="90"
-                              width="60"
-                              height="25"
-                              fill="#dc2626"
-                              stroke="#fecaca"
-                              strokeWidth="1.5"
-                              rx="2"
-                            />
-                            {/* Grille lines */}
-                            <line x1={mx - 20} y1="95" x2={mx - 20} y2="110" stroke="#fff" strokeWidth="1" />
-                            <line x1={mx} y1="95" x2={mx} y2="110" stroke="#fff" strokeWidth="1" />
-                            <line x1={mx + 20} y1="95" x2={mx + 20} y2="110" stroke="#fff" strokeWidth="1" />
-                            {/* Fan icon / duct */}
-                            <path
-                              d={`M ${mx} 90 L ${mx} 45 M ${mx - 6} 58 L ${mx} 45 L ${mx + 6} 58`}
-                              stroke="#ef4444"
-                              strokeWidth="2.5"
-                              fill="none"
-                            />
-                            <text
-                              x={mx}
-                              y="35"
-                              textAnchor="middle"
-                              fill="#f87171"
-                              fontSize="10"
-                              fontWeight="bold"
-                            >
-                              Extraction 400°C/2h
-                            </text>
-                          </g>
-                        ))}
-                      </g>
-                    )}
-
-                    {/* Fresh air inlets in lower wall / floor (zone exempte de fumée) */}
-                    <g>
-                      {/* Left Air inlet */}
-                      <rect
-                        x="70"
-                        y="295"
-                        width="15"
-                        height="55"
-                        fill="#0284c7"
-                        stroke="#7dd3fc"
-                        strokeWidth="1.5"
-                      />
-                      {/* Fresh air inflow arrows */}
-                      <path
-                        d="M 40 320 L 115 320 M 100 312 L 115 320 L 100 328"
-                        stroke="#38bdf8"
-                        strokeWidth="2.5"
-                        fill="none"
-                      />
-                      <text
-                        x="35"
-                        y="308"
-                        textAnchor="end"
-                        fill="#38bdf8"
-                        fontSize="10"
-                        fontWeight="bold"
-                      >
-                        Amenée d'air
-                      </text>
-                      <text
-                        x="35"
-                        y="335"
-                        textAnchor="end"
-                        fill="#94a3b8"
-                        fontSize="8"
-                      >
-                        h ≤ 1.0 m
-                      </text>
-
-                      {/* Right Air inlet */}
-                      <rect
-                        x="715"
-                        y="295"
-                        width="15"
-                        height="55"
-                        fill="#0284c7"
-                        stroke="#7dd3fc"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d="M 760 320 L 685 320 M 700 312 L 685 320 L 700 328"
-                        stroke="#38bdf8"
-                        strokeWidth="2.5"
-                        fill="none"
-                      />
-                    </g>
-
-                    {/* Dimension callout on the right: Height H */}
-                    <g>
-                      <line x1="755" y1="105" x2="755" y2="360" stroke="#cbd5e1" strokeWidth="1.5" />
-                      <line x1="750" y1="105" x2="760" y2="105" stroke="#cbd5e1" strokeWidth="1.5" />
-                      <line x1="750" y1="360" x2="760" y2="360" stroke="#cbd5e1" strokeWidth="1.5" />
-                      <text
-                        x="768"
-                        y="235"
-                        fill="#e2e8f0"
-                        fontSize="11"
-                        fontWeight="bold"
-                        writingMode="vertical-rl"
-                      >
-                        H = {ceilingHeight.toFixed(2)} m
-                      </text>
-                    </g>
-                  </g>
-                );
-              })()}
-            </svg>
-          </div>
-
-          {/* Cross section metric badges */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-xs">
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-              <span className="text-slate-500 block">Hauteur sous plafond (H)</span>
-              <span className="text-sm font-semibold text-slate-800">
-                {ceilingHeight.toFixed(2)} m
-              </span>
+      {viewMode === 'plan' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          {/* Extracteurs Override */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-rose-700">Points d'Extraction</span>
+              <span className="text-[10px] text-slate-500">Calcul initial : {defaultExtCount}</span>
             </div>
-            <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-lg">
-              <span className="text-blue-700 block">Zone libre de fumée (H')</span>
-              <span className="text-sm font-semibold text-blue-900">
-                {clearH.toFixed(2)} m
-              </span>
-              <span className="text-[10px] text-blue-600">≥ 1,80 m ou H/2</span>
-            </div>
-            <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-lg">
-              <span className="text-amber-700 block">Épaisseur nappe fumée (E)</span>
-              <span className="text-sm font-semibold text-amber-900">
-                {smokeE.toFixed(2)} m
-              </span>
-              <span className="text-[10px] text-amber-600">E = H - H'</span>
-            </div>
-            <div className="p-3 bg-rose-50/60 border border-rose-200 rounded-lg">
-              <span className="text-rose-700 block">Retombée d'écran (hr)</span>
-              <span className="text-sm font-semibold text-rose-900">
-                {screenDepth.toFixed(2)} m
-              </span>
-              <span className="text-[10px] text-rose-600">
-                {needsCanton ? 'Écran obligatoire' : 'Canton unique'}
-              </span>
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md p-1 shadow-sm">
+              <button onClick={() => setCustomExtCount(Math.max(1, customExtCount - 1))} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Minus className="w-3.5 h-3.5" /></button>
+              <span className="text-xs font-bold text-slate-800 w-6 text-center">{customExtCount}</span>
+              <button onClick={() => setCustomExtCount(customExtCount + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Plus className="w-3.5 h-3.5" /></button>
             </div>
           </div>
-        </div>
-      ) : (
-        <div>
-          {/* Top-down plan view */}
-          <div className="relative w-full aspect-[16/9] max-h-[380px] bg-slate-900 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center p-3">
-            <svg
-              viewBox="0 0 800 450"
-              className="w-full h-full select-none"
-              preserveAspectRatio="xMidYMid meet"
-            >
-              {/* Outer boundary */}
-              <rect x="100" y="50" width="600" height="350" fill="#0f172a" stroke="#475569" strokeWidth="3" />
-              
-              {/* Dimensions text */}
-              <text x="400" y="35" textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600">
-                Longueur L = {length.toFixed(1)} m
-              </text>
-              <text x="65" y="225" textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600" writingMode="vertical-rl">
-                Largeur W = {width.toFixed(1)} m
-              </text>
-
-              {/* Cantonment divisions in plan */}
-              {cantonment.cantonCount > 1 ? (
-                <>
-                  {Array.from({ length: cantonment.cantonCount }).map((_, idx) => {
-                    const count = cantonment.cantonCount;
-                    const cWidth = 600 / count;
-                    const xStart = 100 + idx * cWidth;
-                    return (
-                      <g key={idx}>
-                        {idx > 0 && (
-                          <line
-                            x1={xStart}
-                            y1="50"
-                            x2={xStart}
-                            y2="400"
-                            stroke="#ef4444"
-                            strokeWidth="3"
-                            strokeDasharray="8 4"
-                          />
-                        )}
-                        <text
-                          x={xStart + cWidth / 2}
-                          y="85"
-                          textAnchor="middle"
-                          fill="#f87171"
-                          fontSize="12"
-                          fontWeight="bold"
-                        >
-                          Canton #{idx + 1}
-                        </text>
-                        <text
-                          x={xStart + cWidth / 2}
-                          y="105"
-                          textAnchor="middle"
-                          fill="#94a3b8"
-                          fontSize="10"
-                        >
-                          ~{cantonment.maxAreaPerCanton.toFixed(0)} m²
-                        </text>
-
-                        {/* DENFC or Grilles in each canton */}
-                        {mode === 'naturel' ? (
-                          Array.from({ length: Math.min(6, natural.denfcCountPerCanton) }).map((_, dIdx) => {
-                            const denfcsInCanton = Math.min(6, natural.denfcCountPerCanton);
-                            const dy = 160 + (dIdx % 3) * 70;
-                            const dx = xStart + (cWidth / (Math.ceil(denfcsInCanton / 3) + 1)) * (Math.floor(dIdx / 3) + 1);
-                            return (
-                              <g key={dIdx}>
-                                <rect
-                                  x={dx - 16}
-                                  y={dy - 16}
-                                  width="32"
-                                  height="32"
-                                  fill="#ef4444"
-                                  stroke="#ffffff"
-                                  strokeWidth="1.5"
-                                  rx="3"
-                                />
-                                <line x1={dx - 10} y1={dy - 10} x2={dx + 10} y2={dy + 10} stroke="#ffffff" strokeWidth="1.5" />
-                                <line x1={dx + 10} y1={dy - 10} x2={dx - 10} y2={dy + 10} stroke="#ffffff" strokeWidth="1.5" />
-                              </g>
-                            );
-                          })
-                        ) : (
-                          // Mechanical grilles
-                          Array.from({ length: 2 }).map((_, gIdx) => {
-                            const gy = 180 + gIdx * 90;
-                            const gx = xStart + cWidth / 2;
-                            return (
-                              <g key={gIdx}>
-                                <circle cx={gx} cy={gy} r="18" fill="#dc2626" stroke="#ffffff" strokeWidth="1.5" />
-                                <text x={gx} y={gy + 4} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
-                                  EXT
-                                </text>
-                              </g>
-                            );
-                          })
-                        )}
-                      </g>
-                    );
-                  })}
-                </>
-              ) : (
-                // Single Canton
-                <g>
-                  <text x="400" y="85" textAnchor="middle" fill="#38bdf8" fontSize="13" fontWeight="bold">
-                    Canton Unique ({area.toFixed(0)} m²)
-                  </text>
-
-                  {mode === 'naturel' ? (
-                    Array.from({ length: Math.min(8, natural.denfcCountTotal) }).map((_, i) => {
-                      const total = Math.min(8, natural.denfcCountTotal);
-                      const cols = Math.min(4, total);
-                      const row = Math.floor(i / cols);
-                      const col = i % cols;
-                      const cx = 180 + col * (440 / Math.max(1, cols - 1 || 1));
-                      const cy = 180 + row * 100;
-                      return (
-                        <g key={i}>
-                          <rect
-                            x={cx - 18}
-                            y={cy - 18}
-                            width="36"
-                            height="36"
-                            fill="#ef4444"
-                            stroke="#ffffff"
-                            strokeWidth="1.5"
-                            rx="3"
-                          />
-                          <line x1={cx - 12} y1={cy - 12} x2={cx + 12} y2={cy + 12} stroke="#ffffff" strokeWidth="1.5" />
-                          <line x1={cx + 12} y1={cy - 12} x2={cx - 12} y2={cy + 12} stroke="#ffffff" strokeWidth="1.5" />
-                          <text x={cx} y={cy + 30} textAnchor="middle" fill="#fca5a5" fontSize="9" fontWeight="bold">
-                            DENFC #{i + 1}
-                          </text>
-                        </g>
-                      );
-                    })
-                  ) : (
-                    // Mechanical grilles distribution
-                    Array.from({ length: Math.min(4, mechanical.suggestedExtractionGrilleCount) }).map((_, i) => {
-                      const total = Math.min(4, mechanical.suggestedExtractionGrilleCount);
-                      const cx = 220 + i * (360 / Math.max(1, total - 1 || 1));
-                      const cy = 230;
-                      return (
-                        <g key={i}>
-                          <circle cx={cx} cy={cy} r="20" fill="#dc2626" stroke="#ffffff" strokeWidth="2" />
-                          <text x={cx} y={cy + 4} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
-                            BOUCHE {i + 1}
-                          </text>
-                        </g>
-                      );
-                    })
-                  )}
-                </g>
-              )}
-
-              {/* Lower fresh air openings */}
-              <rect x="250" y="392" width="100" height="14" fill="#0284c7" stroke="#38bdf8" strokeWidth="1" />
-              <rect x="450" y="392" width="100" height="14" fill="#0284c7" stroke="#38bdf8" strokeWidth="1" />
-              <text x="400" y="425" textAnchor="middle" fill="#38bdf8" fontSize="10" fontWeight="bold">
-                Amenées d'air en façade / ouvrants bas (h ≤ 1.00 m)
-              </text>
-            </svg>
-          </div>
-
-          {/* Plan legend */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-3 border-t border-slate-100 text-xs text-slate-600">
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 bg-red-600 rounded-sm inline-block" />
-              <span>
-                {mode === 'naturel'
-                  ? `Exutoires DENFC (${natural.denfcCountTotal} prévus)`
-                  : 'Bouches d\'extraction 400°C/2h'}
-              </span>
+          {/* Air Neuf Override */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-sky-700">Grilles d'Amenée d'Air</span>
+              <span className="text-[10px] text-slate-500">Calcul initial : {defaultInletCount}</span>
             </div>
-            {cantonment.required && (
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-0.5 border-t-2 border-dashed border-red-500 inline-block" />
-                <span>Écrans de cantonnement (retombée {screenDepth.toFixed(2)} m)</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 bg-sky-600 rounded-sm inline-block" />
-              <span>Amenées d'air frais réglementaires</span>
-            </div>
-            <div className="text-slate-400">
-              Règle : distance inter-appareils ≤ 30 m · distance paroi ≤ 10 m
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md p-1 shadow-sm">
+              <button onClick={() => setCustomInletCount(Math.max(1, customInletCount - 1))} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Minus className="w-3.5 h-3.5" /></button>
+              <span className="text-xs font-bold text-slate-800 w-6 text-center">{customInletCount}</span>
+              <button onClick={() => setCustomInletCount(customInletCount + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Plus className="w-3.5 h-3.5" /></button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ERROR BANNER IF NORMS ARE VIOLATED */}
+      {viewMode === 'plan' && hasGeometricError && (
+        <div className="p-3 bg-rose-100 border border-rose-300 rounded-lg flex items-start gap-3 shadow-inner">
+          <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-xs font-bold text-rose-900 uppercase">Erreur Normative IT 246 : Espacement > 30 mètres</h4>
+            <p className="text-[11px] text-rose-700 mt-1">
+              Les dimensions du local ({length}m × {width}m) créent des zones mortes. La règle impose un point d'extraction tous les 30m maximum. 
+              <strong> Il faut au minimum {minRequiredGeometricPoints} point(s) d'extraction</strong> pour couvrir cette géométrie, mais vous n'en avez prévu que {customExtCount}.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS BANNER IF NORMS ARE OK */}
+      {viewMode === 'plan' && !hasGeometricError && (
+        <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span className="text-xs font-semibold text-emerald-800">
+            Implantation validée : Les rayons d'action couvrent l'intégralité du volume.
+          </span>
+        </div>
+      )}
+
+      <div className="relative w-full aspect-[16/9] max-h-[400px] bg-slate-900 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center p-2">
+        {viewMode === 'section' ? (
+          /* VUE EN COUPE ORIGINALE */
+          <svg viewBox="0 0 800 450" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="smokeGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#1e293b" stopOpacity="0.95" />
+                <stop offset="60%" stopColor="#334155" stopOpacity="0.75" />
+                <stop offset="100%" stopColor="#475569" stopOpacity="0.1" />
+              </linearGradient>
+              <linearGradient id="outsideGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0f172a" /><stop offset="100%" stopColor="#1e293b" />
+              </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="800" height="450" fill="url(#outsideGradient)" />
+            <rect x="80" y="360" width="640" height="25" fill="#334155" />
+            <line x1="80" y1="360" x2="720" y2="360" stroke="#94a3b8" strokeWidth="2" />
+            <text x="85" y="378" fill="#cbd5e1" fontSize="11">Plancher / Niveau fini (Sol ±0.00)</text>
+            <rect x="80" y="80" width="640" height="25" fill="#334155" />
+            <line x1="80" y1="105" x2="720" y2="105" stroke="#94a3b8" strokeWidth="2" />
+            <text x="85" y="98" fill="#cbd5e1" fontSize="11">Toiture / Sous-face plafond (+{ceilingHeight.toFixed(2)} m)</text>
+            <rect x="70" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
+            <rect x="715" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
+
+            {(() => {
+              const totalPx = 255;
+              const smokePx = (smokeE / ceilingHeight) * totalPx;
+              const clearPx = (clearH / ceilingHeight) * totalPx;
+              const smokeTop = 105;
+              const smokeBottom = 105 + smokePx;
+
+              return (
+                <g>
+                  <rect x="85" y={smokeTop} width="630" height={smokePx} fill="url(#smokeGradient)" />
+                  <line x1="85" y1={smokeBottom} x2="715" y2={smokeBottom} stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" />
+                  <text x="400" y={smokeBottom - 8} textAnchor="middle" fill="#fbbf24" fontSize="12" fontWeight="bold">
+                    Interface de fumée (H' = {clearH.toFixed(2)} m)
+                  </text>
+                  <text x="400" y={smokeTop + smokePx / 2} textAnchor="middle" fill="#f87171" fontSize="13" fontWeight="bold">
+                    Zone enfumée (E = {smokeE.toFixed(2)} m)
+                  </text>
+                  <text x="400" y={smokeBottom + clearPx / 2} textAnchor="middle" fill="#38bdf8" fontSize="13" fontWeight="600">
+                    Zone libre de fumée (H' = {clearH.toFixed(2)} m)
+                  </text>
+
+                  {needsCanton && [300, 500].map((xPos, idx) => (
+                    <g key={idx}>
+                      <line x1={xPos} y1="105" x2={xPos} y2={105 + (screenDepth / ceilingHeight) * totalPx} stroke="#ef4444" strokeWidth="5" strokeLinecap="square" />
+                      <text x={xPos + 8} y={105 + ((screenDepth / ceilingHeight) * totalPx) / 2} fill="#fca5a5" fontSize="10" fontWeight="bold">Écran (≥ {screenDepth.toFixed(2)} m)</text>
+                    </g>
+                  ))}
+
+                  {mode === 'naturel' ? (
+                    [200, 400, 600].map((vx, i) => (
+                      <g key={i}>
+                        <rect x={vx - 22} y="75" width="44" height="30" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="3" />
+                        <line x1={vx - 22} y1="75" x2={vx + 15} y2="50" stroke="#ffffff" strokeWidth="2.5" />
+                        <path d={`M ${vx} 70 L ${vx} 40 M ${vx - 5} 50 L ${vx} 40 L ${vx + 5} 50`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
+                        <text x={vx} y="30" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">DENFC</text>
+                      </g>
+                    ))
+                  ) : (
+                    [220, 580].map((mx, i) => (
+                      <g key={i}>
+                        <rect x={mx - 30} y="90" width="60" height="25" fill="#dc2626" stroke="#fecaca" strokeWidth="1.5" rx="2" />
+                        <line x1={mx - 20} y1="95" x2={mx - 20} y2="110" stroke="#fff" strokeWidth="1" />
+                        <line x1={mx + 20} y1="95" x2={mx + 20} y2="110" stroke="#fff" strokeWidth="1" />
+                        <path d={`M ${mx} 90 L ${mx} 45 M ${mx - 6} 58 L ${mx} 45 L ${mx + 6} 58`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
+                        <text x={mx} y="35" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">EXT (10 m/s)</text>
+                      </g>
+                    ))
+                  )}
+
+                  <g>
+                    <rect x="70" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
+                    <path d="M 40 320 L 115 320 M 100 312 L 115 320 L 100 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
+                    <text x="35" y="308" textAnchor="end" fill="#38bdf8" fontSize="10" fontWeight="bold">Amenée d'air</text>
+                    <rect x="715" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
+                    <path d="M 760 320 L 685 320 M 700 312 L 685 320 L 700 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
+                  </g>
+                </g>
+              );
+            })()}
+          </svg>
+        ) : (
+          /* NOUVELLE VUE EN PLAN DYNAMIQUE G.P-T */
+          <svg viewBox="0 0 800 450" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
+            {/* Cotes L et W */}
+            <text x={offsetX + drawW / 2} y={offsetY - 15} textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600">
+              L = {length.toFixed(1)} m
+            </text>
+            <text x={offsetX - 15} y={offsetY + drawH / 2} textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600" writingMode="vertical-rl">
+              W = {width.toFixed(1)} m
+            </text>
+
+            {/* Murs du local */}
+            <rect x={offsetX} y={offsetY} width={drawW} height={drawH} fill="#0f172a" stroke={hasGeometricError ? "#ef4444" : "#475569"} strokeWidth={hasGeometricError ? "4" : "3"} />
+
+            {/* Distribution des grilles d'extraction / DENFC */}
+            {Array.from({ length: customExtCount }).map((_, i) => {
+              const r = Math.floor(i / extCols);
+              const c = i % extCols;
+              const cx = offsetX + (c + 0.5) * (drawW / extCols);
+              const cy = offsetY + (r + 0.5) * (drawH / extRows);
+              const radiusOfAction = 15 * scale; // Rayon d'action normatif max = 15m
+
+              return (
+                <g key={`ext-${i}`}>
+                  {/* Cercle de Rayon d'action (Zone couverte) */}
+                  <circle cx={cx} cy={cy} r={radiusOfAction} fill={hasGeometricError ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.1)"} stroke={hasGeometricError ? "#ef4444" : "#10b981"} strokeDasharray="4 4" strokeWidth="1" />
+                  
+                  {/* Appareil d'extraction */}
+                  {mode === 'naturel' ? (
+                    <>
+                      <rect x={cx - 12} y={cy - 12} width="24" height="24" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="2" />
+                      <line x1={cx - 8} y1={cy - 8} x2={cx + 8} y2={cy + 8} stroke="#ffffff" strokeWidth="1" />
+                      <line x1={cx + 8} y1={cy - 8} x2={cx - 8} y2={cy + 8} stroke="#ffffff" strokeWidth="1" />
+                    </>
+                  ) : (
+                    <>
+                      <rect x={cx - 12} y={cy - 12} width="24" height="24" fill="#dc2626" stroke="#ffffff" strokeWidth="1" />
+                      <line x1={cx - 8} y1={cy - 8} x2={cx + 8} y2={cy - 8} stroke="#fff" strokeWidth="1" />
+                      <line x1={cx - 8} y1={cy} x2={cx + 8} y2={cy} stroke="#fff" strokeWidth="1" />
+                      <line x1={cx - 8} y1={cy + 8} x2={cx + 8} y2={cy + 8} stroke="#fff" strokeWidth="1" />
+                    </>
+                  )}
+                  <text x={cx} y={cy + 22} textAnchor="middle" fill="#fca5a5" fontSize="9" fontWeight="bold">EXT</text>
+                </g>
+              );
+            })}
+
+            {/* Distribution des Amenées d'air sur le mur inférieur */}
+            {Array.from({ length: customInletCount }).map((_, i) => {
+              const cx = offsetX + (i + 0.5) * (drawW / customInletCount);
+              const cy = offsetY + drawH;
+              return (
+                <g key={`inlet-${i}`}>
+                  <rect x={cx - 15} y={cy - 4} width="30" height="8" fill="#0284c7" stroke="#38bdf8" strokeWidth="1.5" />
+                  <path d={`M ${cx} ${cy + 15} L ${cx} ${cy - 15} M ${cx - 4} ${cy - 7} L ${cx} ${cy - 15} L ${cx + 4} ${cy - 7}`} stroke="#38bdf8" strokeWidth="2" fill="none" />
+                  <text x={cx} y={cy + 25} textAnchor="middle" fill="#38bdf8" fontSize="9" fontWeight="bold">AN</text>
+                </g>
+              );
+            })}
+          </svg>
+        )}
+      </div>
+
+      {/* Légende */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs text-slate-600">
+        <div className="flex items-center gap-2">
+          <span className="w-3.5 h-3.5 bg-red-600 rounded-sm inline-block" />
+          <span>Extraction (Rayon d'action = 15m)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3.5 h-3.5 bg-sky-600 rounded-sm inline-block" />
+          <span>Amenée d'Air Neuf (AN)</span>
+        </div>
+        <div className="text-slate-400 font-mono">
+          Espace max : 30m / Mur max : 15m
+        </div>
+      </div>
     </div>
   );
 };
