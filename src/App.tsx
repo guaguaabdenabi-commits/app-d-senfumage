@@ -10,11 +10,19 @@ import { ProjectSummary } from './components/ProjectSummary';
 import { RegulatoryGuideModal } from './components/RegulatoryGuideModal';
 import { InspectionChecklist } from './components/InspectionChecklist';
 import { PrintReport } from './components/PrintReport';
-import { HelpCircle, Plus, Layers, Trash2, X, Sparkles, Flame, Lock, Mail, ArrowRight, ShieldCheck, KeyRound, ArrowLeft } from 'lucide-react';
+import { HelpCircle, Plus, Layers, Trash2, X, Sparkles, Flame, Lock, Mail, ArrowRight, ShieldCheck, KeyRound, ArrowLeft, AlertTriangle } from 'lucide-react';
 
 // ==========================================
-// 1. ÉCRAN DE CONNEXION (VALIDATION PAR EMAIL)
+// 1. ÉCRAN DE CONNEXION & CONTRÔLE D'ACCÈS
 // ==========================================
+
+// 🛡️ LA LISTE BLANCHE G.P-T (Seuls ces e-mails peuvent recevoir un code)
+const AUTHORIZED_EMAILS = [
+  'guagua.abdenabi@gmail.com',
+  'g.pro.tech.sarlau@gmail.com',
+  // Ajoutez d'autres collaborateurs ici, ex: 'technicien@gpro-tech.com'
+];
+
 const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
@@ -23,7 +31,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // ⚠️ CONFIGURATION EMAILJS (À REMPLIR PLUS TARD)
+  // VOS CLÉS EMAILJS
   const EMAILJS_SERVICE_ID = "service_c7omqo2";
   const EMAILJS_TEMPLATE_ID = "template_dddl4gd";
   const EMAILJS_PUBLIC_KEY = "4GbV2S7vX7MvWJy8z";
@@ -33,21 +41,19 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
     setIsLoading(true);
     setError('');
 
-    // Génère un code PIN à 6 chiffres
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
-
-    // MODE TEST : Si les clés ne sont pas encore configurées
-    if (EMAILJS_SERVICE_ID === "YOUR_SERVICE_ID") {
-      setTimeout(() => {
-        alert(`MODE TEST ACTIF (EmailJS non configuré)\n\nVotre code d'accès est : ${code}`);
-        setStep('otp');
-        setIsLoading(false);
-      }, 800);
+    // 1. CONTRÔLE D'ACCÈS STRICT (Vérification de la liste blanche)
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!AUTHORIZED_EMAILS.includes(normalizedEmail)) {
+      setError("Accès refusé : Cette adresse e-mail n'est pas autorisée par l'administration G.P-T.");
+      setIsLoading(false);
       return;
     }
 
-    // MODE PRODUCTION : Envoi réel de l'email via l'API EmailJS
+    // 2. GÉNÉRATION DU CODE
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(code);
+
+    // 3. ENVOI VIA EMAILJS
     try {
       const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
         method: 'POST',
@@ -66,7 +72,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
       if (response.ok) {
         setStep('otp');
       } else {
-        setError("Erreur d'envoi. Vérifiez vos clés EmailJS.");
+        setError("Erreur d'envoi. Veuillez réessayer plus tard.");
       }
     } catch (err) {
       setError("Erreur de connexion réseau.");
@@ -80,7 +86,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
     setError('');
 
     setTimeout(() => {
-      if (otp === generatedOtp || otp === "999999") { // 999999 est un code de secours master
+      if (otp === generatedOtp || otp === "999999") { // 999999 est le code maître
         onLogin();
       } else {
         setError("Code PIN incorrect ou expiré.");
@@ -126,14 +132,14 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
               </div>
             </div>
             <button type="submit" disabled={isLoading} className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group disabled:opacity-70">
-              {isLoading ? <span className="animate-pulse">Envoi du code...</span> : <><span>Recevoir le code PIN</span><ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>}
+              {isLoading ? <span className="animate-pulse">Vérification des droits...</span> : <><span>Demander l'accès</span><ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>}
             </button>
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="p-8 space-y-5 animate-in slide-in-from-right">
             <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-lg flex items-start gap-2">
               <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>Un code PIN à 6 chiffres a été envoyé à <strong>{email}</strong>. Veuillez le saisir ci-dessous.</span>
+              <span>Accès autorisé. Un code PIN à 6 chiffres a été envoyé à <strong>{email}</strong>.</span>
             </div>
             {error && (
               <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg flex items-start gap-2">
@@ -220,20 +226,80 @@ export default function App() {
   const activeCalc = calculateRoomDesenfumage(activeRoom);
 
   const handleUpdateActiveRoom = (updated: RoomInput) => { setRooms((prev) => prev.map((r) => (r.id === updated.id ? updated : r))); };
-  const handleAddRoom = () => { const newId = `room-${Date.now()}`; setRooms((prev) => [...prev, { id: newId, name: `Local #${rooms.length + 1}`, buildingCategory: category, erpType, erpCategory, habitationFamily, spaceKind: 'local', area: 250, length: 20, width: 12.5, ceilingHeight: 3.5, mode: 'naturel', isBasement: false, isBlind: false, selectedDENFCId: 'denfc-120-120' }]); setActiveRoomId(newId); setActiveMainTab('calc'); };
-  const handleDuplicateRoom = (id: string) => { const target = rooms.find((r) => r.id === id); if (target) { const newId = `room-${Date.now()}`; setRooms((prev) => [...prev, { ...target, id: newId, name: `${target.name} (Copie)` }]); setActiveRoomId(newId); } };
-  const handleDeleteRoom = (id: string) => { if (rooms.length > 1) { const filtered = rooms.filter((r) => r.id !== id); setRooms(filtered); if (activeRoomId === id) setActiveRoomId(filtered[0].id); } };
+  
+  const handleAddRoom = () => { 
+    const newId = `room-${Date.now()}`; 
+    setRooms((prev) => [...prev, { id: newId, name: `Local #${rooms.length + 1}`, buildingCategory: category, erpType, erpCategory, habitationFamily, spaceKind: 'local', area: 250, length: 20, width: 12.5, ceilingHeight: 3.5, mode: 'naturel', isBasement: false, isBlind: false, selectedDENFCId: 'denfc-120-120' }]); 
+    setActiveRoomId(newId); 
+    setActiveMainTab('calc'); 
+  };
+  
+  const handleDuplicateRoom = (id: string) => { 
+    const target = rooms.find((r) => r.id === id); 
+    if (target) { 
+      const newId = `room-${Date.now()}`; 
+      setRooms((prev) => [...prev, { ...target, id: newId, name: `${target.name} (Copie)` }]); 
+      setActiveRoomId(newId); 
+    } 
+  };
+  
+  const handleDeleteRoom = (id: string) => { 
+    if (rooms.length > 1) { 
+      const filtered = rooms.filter((r) => r.id !== id); 
+      setRooms(filtered); 
+      if (activeRoomId === id) setActiveRoomId(filtered[0].id); 
+    } 
+  };
 
-  const handleLoadTemplate = (type: string) => { /* Modèles inchangés */ };
+  const handleLoadTemplate = (type: 'erp_mall' | 'ert_office' | 'habitation_3b' | 'icpe_warehouse' | 'parking') => {
+    if (type === 'erp_mall') {
+      setCategory('erp'); setERPType('M'); setERPCategory('1'); setBuildingName('Centre Commercial Les Passerelles');
+      setRooms([{ id: 'r1', name: 'Galerie Marchande Principale', buildingCategory: 'erp', erpType: 'M', erpCategory: '1', spaceKind: 'local', area: 1800, length: 90, width: 20, ceilingHeight: 5.5, mode: 'naturel', isBasement: false, isBlind: false, selectedDENFCId: 'denfc-150-150' }]);
+      setActiveRoomId('r1');
+    } else if (type === 'ert_office') {
+      setCategory('ert'); setBuildingName('Bâtiment Tertiaire & Bureaux Horizon');
+      setRooms([{ id: 'r1', name: 'Open Space & Bureaux RDC', buildingCategory: 'ert', spaceKind: 'local', area: 450, length: 25, width: 18, ceilingHeight: 3.2, mode: 'mecanique', isBasement: false, isBlind: false, selectedDENFCId: 'denfc-120-120' }]);
+      setActiveRoomId('r1');
+    } else if (type === 'icpe_warehouse') {
+      setCategory('icpe'); setBuildingName('Plateforme Logistique ICPE 1510');
+      setRooms([{ id: 'r1', name: 'Cellule Logistique A', buildingCategory: 'icpe', spaceKind: 'cellule_stockage', area: 3200, length: 80, width: 40, ceilingHeight: 11.5, mode: 'naturel', isBasement: false, isBlind: false, selectedDENFCId: 'denfc-150-200' }]);
+      setActiveRoomId('r1');
+    } else if (type === 'habitation_3b') {
+      setCategory('habitation'); setHabitationFamily('3B'); setBuildingName('Résidence Les Lilas (R+6)');
+      setRooms([{ id: 'r1', name: 'Cage d\'Escalier Bâtiment A', buildingCategory: 'habitation', habitationFamily: '3B', spaceKind: 'escalier', area: 30, length: 6, width: 5, ceilingHeight: 21.0, mode: 'naturel', isBasement: false, isBlind: false, selectedDENFCId: 'denfc-100-100' }]);
+      setActiveRoomId('r1');
+    } else if (type === 'parking') {
+      setCategory('ps'); setBuildingName('Parc de Stationnement Souterrain République');
+      setRooms([{ id: 'r1', name: 'Niveau -1 (80 places)', buildingCategory: 'ps', spaceKind: 'parking_box', area: 2000, length: 50, width: 40, ceilingHeight: 2.7, mode: 'mecanique', isBasement: true, isBlind: true, vehicleCount: 80, selectedDENFCId: 'denfc-120-120' }]);
+      setActiveRoomId('r1');
+    }
+  };
 
   if (!isAuthenticated) return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+  
   if (isPrintView) return <PrintReport rooms={rooms} buildingName={buildingName} address={address} author={author} category={category} erpType={erpType} erpCategory={erpCategory} habitationFamily={habitationFamily} onClose={() => setIsPrintView(false)} />;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-white relative">
       <Header buildingName={buildingName} onChangeBuildingName={setBuildingName} onOpenGuide={() => setIsGuideOpen(true)} onOpenChecklist={() => setIsChecklistOpen(true)} onPrint={() => setIsPrintView(true)} onAddRoom={handleAddRoom} roomCount={rooms.length} />
+      
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
+        <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+            <span className="text-xs font-bold text-slate-800">Modèles Types Prédéfinis :</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5 text-xs">
+            <button type="button" onClick={() => handleLoadTemplate('erp_mall')} className="px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-medium">ERP Commerce</button>
+            <button type="button" onClick={() => handleLoadTemplate('ert_office')} className="px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 font-medium">Bureaux ERT</button>
+            <button type="button" onClick={() => handleLoadTemplate('icpe_warehouse')} className="px-2.5 py-1 rounded-md bg-orange-50 hover:bg-orange-100 text-orange-900 border border-orange-200 font-medium">Entrepôt ICPE</button>
+            <button type="button" onClick={() => handleLoadTemplate('habitation_3b')} className="px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 font-medium">Habitation</button>
+            <button type="button" onClick={() => handleLoadTemplate('parking')} className="px-2.5 py-1 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 font-medium">Parking</button>
+          </div>
+        </div>
+
         <BuildingSelector category={category} erpType={erpType} erpCategory={erpCategory} habitationFamily={habitationFamily} onChangeCategory={(c) => { setCategory(c); handleUpdateActiveRoom({ ...activeRoom, buildingCategory: c }); }} onChangeERPType={(t) => { setERPType(t); handleUpdateActiveRoom({ ...activeRoom, erpType: t }); }} onChangeERPCategory={(cat) => { setERPCategory(cat); handleUpdateActiveRoom({ ...activeRoom, erpCategory: cat }); }} onChangeHabitationFamily={(f) => { setHabitationFamily(f); handleUpdateActiveRoom({ ...activeRoom, habitationFamily: f }); }} />
+        
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
             <span className="text-xs font-bold text-slate-700 whitespace-nowrap mr-1">Locaux étudiés :</span>
@@ -248,6 +314,7 @@ export default function App() {
             <button onClick={() => setActiveMainTab('all-rooms')} className={`px-3 py-1.5 text-xs font-bold rounded-md ${activeMainTab === 'all-rooms' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>Dossier & Bilan Global</button>
           </div>
         </div>
+
         {activeMainTab === 'calc' ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <div className="lg:col-span-5 space-y-6"><RoomForm room={activeRoom} onChangeRoom={handleUpdateActiveRoom} buildingCategory={category} /></div>
@@ -257,6 +324,7 @@ export default function App() {
           <ProjectSummary rooms={rooms} activeRoomId={activeRoomId} onSelectRoom={(id) => { setActiveRoomId(id); setActiveMainTab('calc'); }} onAddRoom={handleAddRoom} onDuplicateRoom={handleDuplicateRoom} onDeleteRoom={handleDeleteRoom} buildingName={buildingName} onChangeBuildingName={setBuildingName} address={address} onChangeAddress={setAddress} author={author} onChangeAuthor={setAuthor} />
         )}
       </main>
+
       <button onClick={() => setIsHelpOpen(true)} className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center z-40"><HelpCircle className="w-7 h-7" /></button>
     </div>
   );
