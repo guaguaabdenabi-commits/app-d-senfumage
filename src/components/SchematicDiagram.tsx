@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RoomInput, CalculationResult } from '../types/desenfumage';
-import { Layers, Wind, AlertTriangle, ShieldCheck, Plus, Minus, Maximize2, CheckCircle2 } from 'lucide-react';
+import { Layers, AlertTriangle, Plus, Minus, CheckCircle2 } from 'lucide-react';
 
 interface SchematicDiagramProps {
   room: RoomInput;
@@ -32,15 +32,13 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
   const [customExtCount, setCustomExtCount] = useState<number>(defaultExtCount);
   const [customInletCount, setCustomInletCount] = useState<number>(defaultInletCount);
 
-  // Synchronisation si le calcul principal change (changement de surface, de mode, etc)
+  // Synchronisation si le calcul principal change
   useEffect(() => {
     setCustomExtCount(defaultExtCount);
     setCustomInletCount(defaultInletCount);
   }, [defaultExtCount, defaultInletCount]);
 
   // VÉRIFICATION NORMATIVE GÉOMÉTRIQUE (IT 246 § 3.6)
-  // Distance max entre 2 exutoires = 30m. Distance mur = 15m.
-  // Il faut donc quadriller le local.
   const requiredCols = Math.ceil(length / 30);
   const requiredRows = Math.ceil(width / 30);
   const minRequiredGeometricPoints = requiredCols * requiredRows;
@@ -60,9 +58,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
   // Répartition en grille des points d'extraction
   const extCols = Math.max(1, Math.ceil(Math.sqrt(customExtCount * (L / W))));
   const extRows = Math.max(1, Math.ceil(customExtCount / extCols));
-  const distX = L / extCols;
-  const distY = W / extRows;
-  const spacingExceeded = distX > 30 || distY > 30;
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
@@ -79,15 +74,12 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
           </p>
         </div>
 
-        {/* View mode toggle */}
         <div className="inline-flex p-1 bg-slate-100 rounded-lg self-start sm:self-auto shrink-0">
           <button
             type="button"
             onClick={() => setViewMode('section')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-              viewMode === 'section'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+              viewMode === 'section' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Vue en Coupe
@@ -96,9 +88,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
             type="button"
             onClick={() => setViewMode('plan')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-              viewMode === 'plan'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+              viewMode === 'plan' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Vue en Plan / Répartition
@@ -108,7 +98,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
 
       {viewMode === 'plan' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 border border-slate-200 rounded-lg p-3">
-          {/* Extracteurs Override */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs font-bold text-rose-700">Points d'Extraction</span>
@@ -120,7 +109,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
               <button onClick={() => setCustomExtCount(customExtCount + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Plus className="w-3.5 h-3.5" /></button>
             </div>
           </div>
-          {/* Air Neuf Override */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs font-bold text-sky-700">Grilles d'Amenée d'Air</span>
@@ -135,7 +123,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
         </div>
       )}
 
-      {/* ERROR BANNER IF NORMS ARE VIOLATED */}
       {viewMode === 'plan' && hasGeometricError && (
         <div className="p-3 bg-rose-100 border border-rose-300 rounded-lg flex items-start gap-3 shadow-inner">
           <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
@@ -149,7 +136,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
         </div>
       )}
 
-      {/* SUCCESS BANNER IF NORMS ARE OK */}
       {viewMode === 'plan' && !hasGeometricError && (
         <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -161,7 +147,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
 
       <div className="relative w-full aspect-[16/9] max-h-[400px] bg-slate-900 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center p-2">
         {viewMode === 'section' ? (
-          /* VUE EN COUPE ORIGINALE */
           <svg viewBox="0 0 800 450" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
             <defs>
               <linearGradient id="smokeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -227,7 +212,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
                         <line x1={mx - 20} y1="95" x2={mx - 20} y2="110" stroke="#fff" strokeWidth="1" />
                         <line x1={mx + 20} y1="95" x2={mx + 20} y2="110" stroke="#fff" strokeWidth="1" />
                         <path d={`M ${mx} 90 L ${mx} 45 M ${mx - 6} 58 L ${mx} 45 L ${mx + 6} 58`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
-                        <text x={mx} y="35" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">EXT (10 m/s)</text>
+                        <text x={mx} y="35" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">EXT</text>
                       </g>
                     ))
                   )}
@@ -244,9 +229,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
             })()}
           </svg>
         ) : (
-          /* NOUVELLE VUE EN PLAN DYNAMIQUE G.P-T */
           <svg viewBox="0 0 800 450" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
-            {/* Cotes L et W */}
             <text x={offsetX + drawW / 2} y={offsetY - 15} textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600">
               L = {length.toFixed(1)} m
             </text>
@@ -254,23 +237,18 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
               W = {width.toFixed(1)} m
             </text>
 
-            {/* Murs du local */}
             <rect x={offsetX} y={offsetY} width={drawW} height={drawH} fill="#0f172a" stroke={hasGeometricError ? "#ef4444" : "#475569"} strokeWidth={hasGeometricError ? "4" : "3"} />
 
-            {/* Distribution des grilles d'extraction / DENFC */}
             {Array.from({ length: customExtCount }).map((_, i) => {
               const r = Math.floor(i / extCols);
               const c = i % extCols;
               const cx = offsetX + (c + 0.5) * (drawW / extCols);
               const cy = offsetY + (r + 0.5) * (drawH / extRows);
-              const radiusOfAction = 15 * scale; // Rayon d'action normatif max = 15m
-
+              const radiusOfAction = 15 * scale; 
               return (
                 <g key={`ext-${i}`}>
-                  {/* Cercle de Rayon d'action (Zone couverte) */}
                   <circle cx={cx} cy={cy} r={radiusOfAction} fill={hasGeometricError ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.1)"} stroke={hasGeometricError ? "#ef4444" : "#10b981"} strokeDasharray="4 4" strokeWidth="1" />
                   
-                  {/* Appareil d'extraction */}
                   {mode === 'naturel' ? (
                     <>
                       <rect x={cx - 12} y={cy - 12} width="24" height="24" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="2" />
@@ -290,7 +268,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
               );
             })}
 
-            {/* Distribution des Amenées d'air sur le mur inférieur */}
             {Array.from({ length: customInletCount }).map((_, i) => {
               const cx = offsetX + (i + 0.5) * (drawW / customInletCount);
               const cy = offsetY + drawH;
@@ -306,7 +283,6 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
         )}
       </div>
 
-      {/* Légende */}
       <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs text-slate-600">
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 bg-red-600 rounded-sm inline-block" />
