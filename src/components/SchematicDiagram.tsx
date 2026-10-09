@@ -194,4 +194,73 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
                 <path d="M 40 320 L 115 320 M 100 312 L 115 320 L 100 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
                 <text x="35" y="308" textAnchor="end" fill="#38bdf8" fontSize="10" fontWeight="bold">Amenée d'air</text>
                 <rect x="715" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
-                <path d="M 760 320 L 685 320 M 700 312 L 685 320 L 700 328" stroke="#38bdf8" strokeWidth="2.5"
+                <path d="M 760 320 L 685 320 M 700 312 L 685 320 L 700 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
+              </g>
+            </g>
+          </svg>
+        ) : (
+          <svg viewBox="0 0 800 450" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
+            <text x={offsetX + drawW / 2} y={offsetY - 15} textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600">L = {length.toFixed(1)} m</text>
+            <text x={offsetX - 15} y={offsetY + drawH / 2} textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600" writingMode="vertical-rl">W = {width.toFixed(1)} m</text>
+
+            <rect x={offsetX} y={offsetY} width={drawW} height={drawH} fill="#0f172a" stroke={hasGeometricError ? "#ef4444" : "#475569"} strokeWidth={hasGeometricError ? "4" : "3"} />
+
+            {Array.from({ length: customExtCount }).map((_, i) => {
+              const r = Math.floor(i / extCols);
+              const c = i % extCols;
+              const cx = offsetX + (c + 0.5) * (drawW / extCols);
+              const cy = offsetY + (r + 0.5) * (drawH / extRows);
+              const radiusOfAction = 15 * scale; 
+              return (
+                <g key={`ext-${i}`}>
+                  <circle cx={cx} cy={cy} r={radiusOfAction} fill={hasGeometricError ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.1)"} stroke={hasGeometricError ? "#ef4444" : "#10b981"} strokeDasharray="4 4" strokeWidth="1" />
+                  {mode === 'naturel' ? (
+                    <>
+                      <rect x={cx - 12} y={cy - 12} width="24" height="24" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="2" />
+                      <line x1={cx - 8} y1={cy - 8} x2={cx + 8} y2={cy + 8} stroke="#ffffff" strokeWidth="1" />
+                      <line x1={cx + 8} y1={cy - 8} x2={cx - 8} y2={cy + 8} stroke="#ffffff" strokeWidth="1" />
+                    </>
+                  ) : (
+                    <>
+                      <rect x={cx - 12} y={cy - 12} width="24" height="24" fill="#dc2626" stroke="#ffffff" strokeWidth="1" />
+                      <line x1={cx - 8} y1={cy - 8} x2={cx + 8} y2={cy - 8} stroke="#fff" strokeWidth="1" />
+                      <line x1={cx - 8} y1={cy} x2={cx + 8} y2={cy} stroke="#fff" strokeWidth="1" />
+                      <line x1={cx - 8} y1={cy + 8} x2={cx + 8} y2={cy + 8} stroke="#fff" strokeWidth="1" />
+                    </>
+                  )}
+                  <text x={cx} y={cy + 22} textAnchor="middle" fill="#fca5a5" fontSize="9" fontWeight="bold">EXT</text>
+                </g>
+              );
+            })}
+
+            {Array.from({ length: customInletCount }).map((_, i) => {
+              const cx = offsetX + (i + 0.5) * (drawW / customInletCount);
+              const cy = offsetY + drawH;
+              return (
+                <g key={`inlet-${i}`}>
+                  <rect x={cx - 15} y={cy - 4} width="30" height="8" fill="#0284c7" stroke="#38bdf8" strokeWidth="1.5" />
+                  <path d={`M ${cx} ${cy + 15} L ${cx} ${cy - 15} M ${cx - 4} ${cy - 7} L ${cx} ${cy - 15} L ${cx + 4} ${cy - 7}`} stroke="#38bdf8" strokeWidth="2" fill="none" />
+                  <text x={cx} y={cy + 25} textAnchor="middle" fill="#38bdf8" fontSize="9" fontWeight="bold">AN</text>
+                </g>
+              );
+            })}
+          </svg>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs text-slate-600">
+        <div className="flex items-center gap-2">
+          <span className="w-3.5 h-3.5 bg-red-600 rounded-sm inline-block" />
+          <span>Extraction (Rayon d'action = 15m)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3.5 h-3.5 bg-sky-600 rounded-sm inline-block" />
+          <span>Amenée d'Air Neuf (AN)</span>
+        </div>
+        <div className="text-slate-400 font-mono">
+          Espace max : 30m / Mur max : 15m
+        </div>
+      </div>
+    </div>
+  );
+};
