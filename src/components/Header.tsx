@@ -1,8 +1,9 @@
 import React from 'react';
-import { Flame, BookOpen, ClipboardCheck, Printer, Plus, FolderDown } from 'lucide-react';
+import { Flame, BookOpen, CheckSquare, Plus, FileText } from 'lucide-react';
 
 interface HeaderProps {
   buildingName: string;
+  onChangeBuildingName?: (name: string) => void;
   onOpenGuide: () => void;
   onOpenChecklist: () => void;
   onPrint: () => void;
@@ -12,6 +13,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   buildingName,
+  onChangeBuildingName,
   onOpenGuide,
   onOpenChecklist,
   onPrint,
@@ -19,74 +21,57 @@ export const Header: React.FC<HeaderProps> = ({
   roomCount,
 }) => {
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo & Brand */}
+    <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="flex flex-col justify-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-tr from-amber-600 to-rose-600 flex items-center justify-center shadow-inner">
-              <Flame className="w-6 h-6 text-white" />
+            <div className="p-1.5 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg shadow-sm">
+              <Flame className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base sm:text-lg tracking-tight text-white">
-                  Désenfumage Expert
-                </span>
-                <span className="text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded">
-                  IT 246 · R.4216 · ICPE
-                </span>
-              </div>
-              <div className="text-xs text-slate-400 truncate max-w-[220px] sm:max-w-xs">
-                {buildingName ? `Projet : ${buildingName}` : 'Dimensionnement Réglementaire Sécurité Incendie'}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onOpenGuide}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors"
-              title="Guide réglementaire et mémento des normes"
-            >
-              <BookOpen className="w-4 h-4 text-amber-400" />
-              <span className="hidden md:inline">Mémento Normes</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenChecklist}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors"
-              title="Fiche de contrôle et vérification périodique"
-            >
-              <ClipboardCheck className="w-4 h-4 text-emerald-400" />
-              <span className="hidden md:inline">Fiche de Contrôle</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onAddRoom}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-900 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors shadow-sm"
-              title="Ajouter une zone ou un local"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Ajouter Local</span>
-              <span className="text-[10px] bg-amber-500/30 px-1.5 py-0.2 rounded-full font-bold">
-                {roomCount}
+            <div className="flex items-center gap-2">
+              <h1 className="font-bold text-lg tracking-tight">Désenfumage Expert</h1>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/50 text-amber-400 bg-amber-500/10 hidden sm:inline-block">
+                IT 246 · R.4216 · ICPE
               </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onPrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition-colors shadow-sm"
-              title="Exporter ou imprimer la note technique de calculs"
-            >
-              <Printer className="w-4 h-4" />
-              <span className="hidden sm:inline">Rapport PDF</span>
-            </button>
+            </div>
           </div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-xs">
+            <span className="text-amber-500 font-medium">Projet :</span>
+            {onChangeBuildingName ? (
+              <input
+                type="text"
+                value={buildingName}
+                onChange={(e) => onChangeBuildingName(e.target.value)}
+                className="bg-transparent border-b border-dashed border-amber-500/50 text-amber-400 font-semibold focus:outline-none focus:border-amber-400 w-64 md:w-96 placeholder-amber-700/50 px-1"
+                placeholder="Nom du projet..."
+              />
+            ) : (
+              <span className="text-amber-400 font-semibold truncate max-w-[250px] md:max-w-md">{buildingName}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button onClick={onOpenGuide} className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+            <BookOpen className="w-4 h-4" />
+            Mémento Normes
+          </button>
+          <button onClick={onOpenChecklist} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10 rounded-lg transition-colors">
+            <CheckSquare className="w-4 h-4" />
+            Fiche de Contrôle
+          </button>
+          
+          <div className="w-px h-6 bg-slate-700 mx-1 hidden sm:block"></div>
+
+          <button onClick={onAddRoom} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors shadow-sm">
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Ajouter Local</span>
+            <span className="inline-block bg-amber-500/20 px-1.5 rounded">{roomCount}</span>
+          </button>
+          <button onClick={onPrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition-colors shadow-sm">
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Rapport PDF</span>
+          </button>
         </div>
       </div>
     </header>
