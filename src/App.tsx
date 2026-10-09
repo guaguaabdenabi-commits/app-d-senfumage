@@ -24,9 +24,9 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   // ⚠️ CONFIGURATION EMAILJS (À REMPLIR PLUS TARD)
-  const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
-  const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
-  const EMAILJS_PUBLIC_KEY = "YOUR_PUBLIC_KEY";
+  const EMAILJS_SERVICE_ID = "service_c7omqo2";
+  const EMAILJS_TEMPLATE_ID = "template_dddl4gd";
+  const EMAILJS_PUBLIC_KEY = "4GbV2S7vX7MvWJy8z";
 
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
