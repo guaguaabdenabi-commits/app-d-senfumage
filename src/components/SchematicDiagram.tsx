@@ -59,7 +59,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
   const extCols = Math.max(1, Math.ceil(Math.sqrt(customExtCount * (L / W))));
   const extRows = Math.max(1, Math.ceil(customExtCount / extCols));
 
-  // Variables calculées pour la vue en Coupe (Évite les fonctions imbriquées dans le JSX)
+  // Variables calculées pour la vue en Coupe
   const totalPx = 255;
   const safeCeilingHeight = Math.max(ceilingHeight, 1.8);
   const smokePx = (smokeE / safeCeilingHeight) * totalPx;
@@ -201,45 +201,4 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
                 [200, 400, 600].map((vx, i) => (
                   <g key={i}>
                     <rect x={vx - 22} y="75" width="44" height="30" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="3" />
-                    <line x1={vx - 22} y1="75" x2={vx + 15} y2="50" stroke="#ffffff" strokeWidth="2.5" />
-                    <path d={`M ${vx} 70 L ${vx} 40 M ${vx - 5} 50 L ${vx} 40 L ${vx + 5} 50`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
-                    <text x={vx} y="30" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">DENFC</text>
-                  </g>
-                ))
-              ) : (
-                [220, 580].map((mx, i) => (
-                  <g key={i}>
-                    <rect x={mx - 30} y="90" width="60" height="25" fill="#dc2626" stroke="#fecaca" strokeWidth="1.5" rx="2" />
-                    <line x1={mx - 20} y1="95" x2={mx - 20} y2="110" stroke="#fff" strokeWidth="1" />
-                    <line x1={mx + 20} y1="95" x2={mx + 20} y2="110" stroke="#fff" strokeWidth="1" />
-                    <path d={`M ${mx} 90 L ${mx} 45 M ${mx - 6} 58 L ${mx} 45 L ${mx + 6} 58`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
-                    <text x={mx} y="35" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">EXT</text>
-                  </g>
-                ))
-              )}
-
-              <g>
-                <rect x="70" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
-                <path d="M 40 320 L 115 320 M 100 312 L 115 320 L 100 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
-                <text x="35" y="308" textAnchor="end" fill="#38bdf8" fontSize="10" fontWeight="bold">Amenée d&apos;air</text>
-                <rect x="715" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
-                <path d="M 760 320 L 685 320 M 700 312 L 685 320 L 700 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
-              </g>
-            </g>
-          </svg>
-        ) : (
-          <svg viewBox="0 0 800 450" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
-            <text x={offsetX + drawW / 2} y={offsetY - 15} textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600">
-              L = {length.toFixed(1)} m
-            </text>
-            <text x={offsetX - 15} y={offsetY + drawH / 2} textAnchor="middle" fill="#94a3b8" fontSize="12" fontWeight="600" writingMode="vertical-rl">
-              W = {width.toFixed(1)} m
-            </text>
-
-            <rect x={offsetX} y={offsetY} width={drawW} height={drawH} fill="#0f172a" stroke={hasGeometricError ? "#ef4444" : "#475569"} strokeWidth={hasGeometricError ? "4" : "3"} />
-
-            {Array.from({ length: customExtCount }).map((_, i) => {
-              const r = Math.floor(i / extCols);
-              const c = i % extCols;
-              const cx = offsetX + (c + 0.5) * (drawW / extCols);
-              const cy = offsetY + (r + 0.5) * (draw
+                    <line x1={vx - 22} y1="75" x2={vx + 15}
