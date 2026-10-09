@@ -4,7 +4,7 @@ export function calculateRoomDesenfumage(room: RoomInput): CalculationResult {
   const { area, length, width, ceilingHeight, clearSmokeHeight, spaceKind, isBlind, isBasement } = room;
 
   // ==========================================
-  // 1. ASSUJETTISSEMENT (CORRECTIF FATAL APPLIQUÉ)
+  // 1. ASSUJETTISSEMENT
   // ==========================================
   let isRequired = false;
   let requirementReason = "Non requis selon les paramètres géométriques.";
@@ -90,7 +90,8 @@ export function calculateRoomDesenfumage(room: RoomInput): CalculationResult {
       cantonCount,
       maxCantonAreaM2,
       screenDepthM,
-      clearHeightM: clearH
+      clearHeightM: clearH,
+      smokeLayerThicknessM: smokeE  // <--- L'ERREUR ÉTAIT ICI : J'AVAIS OUBLIÉ CETTE LIGNE !!
     },
     natural: {
       requiredSUE,
