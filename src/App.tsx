@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BuildingCategory, ERPType, ERPCategory, HabitationFamily, RoomInput } from './types/desenfumage';
 import { calculateRoomDesenfumage } from './services/calculator';
 import { Header } from './components/Header';
@@ -10,89 +10,55 @@ import { ProjectSummary } from './components/ProjectSummary';
 import { RegulatoryGuideModal } from './components/RegulatoryGuideModal';
 import { InspectionChecklist } from './components/InspectionChecklist';
 import { PrintReport } from './components/PrintReport';
-import { HelpCircle, Plus, Layers, Trash2, X, Sparkles, Flame, Lock, Mail, ArrowRight, ShieldCheck, KeyRound, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { HelpCircle, Plus, Flame, Lock, User, ArrowRight, ShieldCheck, ArrowLeft, KeyRound, UserPlus } from 'lucide-react';
 
 // ==========================================
-// 1. ÉCRAN DE CONNEXION & CONTRÔLE D'ACCÈS
+// 1. ÉCRAN DE CONNEXION & GESTION DES COMPTES LOCAUX
 // ==========================================
 
-// 🛡️ LA LISTE BLANCHE G.P-T (Seuls ces e-mails peuvent recevoir un code)
-const AUTHORIZED_EMAILS = [
-  'guagua.abdenabi@gmail.com',
-  'g.pro.tech.sarlau@gmail.com',
-  // Ajoutez d'autres collaborateurs ici, ex: 'technicien@gpro-tech.com'
-];
-
-const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
-  const [step, setStep] = useState<'email' | 'otp'>('email');
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
+const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
-  // VOS CLÉS EMAILJS
-  const EMAILJS_SERVICE_ID = "service_c7omqo2";
-  const EMAILJS_TEMPLATE_ID = "template_dddl4gd";
-  const EMAILJS_PUBLIC_KEY = "4GbV2S7vX7MvWJy8z";
-
-  const handleSendEmail = async (e: React.FormEvent) => {
+  // Gestion de la soumission (Connexion ou Inscription)
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+    setSuccessMsg('');
 
-    // 1. CONTRÔLE D'ACCÈS STRICT (Vérification de la liste blanche)
-    const normalizedEmail = email.toLowerCase().trim();
-    if (!AUTHORIZED_EMAILS.includes(normalizedEmail)) {
-      setError("Accès refusé : Cette adresse e-mail n'est pas autorisée par l'administration G.P-T.");
-      setIsLoading(false);
-      return;
-    }
+    const cleanUser = username.trim().toLowerCase();
+    const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
 
-    // 2. GÉNÉRATION DU CODE
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
-
-    // 3. ENVOI VIA EMAILJS
-    try {
-      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_id: EMAILJS_SERVICE_ID,
-          template_id: EMAILJS_TEMPLATE_ID,
-          user_id: EMAILJS_PUBLIC_KEY,
-          template_params: {
-            to_email: email,
-            otp_code: code,
-          }
-        })
-      });
-
-      if (response.ok) {
-        setStep('otp');
-      } else {
-        setError("Erreur d'envoi. Veuillez réessayer plus tard.");
+    if (isRegistering) {
+      if (accounts[cleanUser]) {
+        setError("Ce nom d'utilisateur existe déjà. Veuillez vous connecter.");
+        return;
       }
-    } catch (err) {
-      setError("Erreur de connexion réseau.");
-    }
-    setIsLoading(false);
-  };
-
-  const handleVerifyOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    setTimeout(() => {
-      if (otp === generatedOtp || otp === "999999") { // 999999 est le code maître
-        onLogin();
-      } else {
-        setError("Code PIN incorrect ou expiré.");
-        setIsLoading(false);
+      if (password.length < 4) {
+        setError("Le mot de passe doit contenir au moins 4 caractères.");
+        return;
       }
-    }, 500);
+      // Enregistrement du compte
+      accounts[cleanUser] = password;
+      localStorage.setItem('gpt_users', JSON.stringify(accounts));
+      setSuccessMsg("Compte créé avec succès ! Connectez-vous maintenant.");
+      setIsRegistering(false);
+      setPassword('');
+    } else {
+      // Vérification de la connexion (compte par défaut admin/admin inclus)
+      const defaultAdminUser = 'admin';
+      const defaultAdminPass = 'gpt2026';
+
+      if ((cleanUser === defaultAdminUser && password === defaultAdminPass) || (accounts[cleanUser] && accounts[cleanUser] === password)) {
+        localStorage.setItem('gpt_current_user', cleanUser);
+        onLogin(cleanUser);
+      } else {
+        setError("Identifiant ou mot de passe incorrect.");
+      }
+    }
   };
 
   return (
@@ -108,70 +74,70 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             <Flame className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">G.P-T Bureau d'Études</h1>
-          <p className="text-sm font-medium text-amber-600 mt-1 uppercase tracking-widest">Portail Sécurisé</p>
+          <p className="text-sm font-medium text-amber-600 mt-1 uppercase tracking-widest">
+            {isRegistering ? "Création de compte Ingénieur" : "Portail Sécurisé Client"}
+          </p>
         </div>
 
-        {step === 'email' ? (
-          <form onSubmit={handleSendEmail} className="p-8 space-y-5 animate-in slide-in-from-left">
-            {error && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span>
-              </div>
-            )}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase">Saisissez votre e-mail d'entreprise</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="w-5 h-5 text-slate-400" />
-                </div>
-                <input 
-                  type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
-                  placeholder="nom@gpro-tech.com"
-                />
-              </div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-5">
+          {error && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg">
+              {error}
             </div>
-            <button type="submit" disabled={isLoading} className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group disabled:opacity-70">
-              {isLoading ? <span className="animate-pulse">Vérification des droits...</span> : <><span>Demander l'accès</span><ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp} className="p-8 space-y-5 animate-in slide-in-from-right">
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-lg flex items-start gap-2">
-              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>Accès autorisé. Un code PIN à 6 chiffres a été envoyé à <strong>{email}</strong>.</span>
+          )}
+          {successMsg && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg">
+              {successMsg}
             </div>
-            {error && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg flex items-start gap-2">
-                <Lock className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-700 uppercase">Identifiant / Bureau d'études</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <User className="w-5 h-5 text-slate-400" />
               </div>
-            )}
-            <div className="space-y-1 text-center">
-              <label className="text-xs font-bold text-slate-700 uppercase">Code de sécurité (6 chiffres)</label>
-              <div className="relative max-w-[200px] mx-auto mt-2">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <KeyRound className="w-5 h-5 text-slate-400" />
-                </div>
-                <input 
-                  type="text" maxLength={6} required value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xl tracking-[0.5em] font-bold text-center text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
-                  placeholder="••••••"
-                />
-              </div>
+              <input 
+                type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
+                placeholder="Ex: bureau_etudes_a"
+              />
             </div>
-            <button type="submit" disabled={isLoading || otp.length < 6} className="w-full mt-2 flex items-center justify-center gap-2 bg-amber-500 text-slate-900 font-bold py-3.5 px-4 rounded-xl hover:bg-amber-400 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-              {isLoading ? <span className="animate-pulse">Vérification...</span> : "Valider et Accéder"}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe personnel</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <KeyRound className="w-5 h-5 text-slate-400" />
+              </div>
+              <input 
+                type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <button type="submit" className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group">
+            <span>{isRegistering ? "S'inscrire" : "Se connecter"}</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </button>
+
+          <div className="text-center pt-2">
+            <button 
+              type="button" 
+              onClick={() => { setIsRegistering(!isRegistering); setError(''); setSuccessMsg(''); }}
+              className="text-xs font-bold text-amber-600 hover:text-amber-700"
+            >
+              {isRegistering ? "Déjà un compte ? Connectez-vous" : "Pas de compte ? Créer un accès"}
             </button>
-            <button type="button" onClick={() => setStep('email')} className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 mt-4">
-              <ArrowLeft className="w-3 h-3" /> Retour à l'e-mail
-            </button>
-          </form>
-        )}
+          </div>
+        </form>
       </div>
     </div>
   );
 };
-
 
 // ==========================================
 // 2. MODAL D'AIDE ET VARIABLES INITIALES
@@ -183,10 +149,10 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-blue-50">
           <h2 className="text-lg font-bold text-blue-900 flex items-center gap-2"><HelpCircle className="w-6 h-6 text-blue-600" />Cahier d'aide & Prise en main</h2>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors"><HelpCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6 text-sm text-slate-700">
-          <div className="space-y-2"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" /> Ajouter une zone</h3><p>Allez dans "Dossier & Bilan" ou utilisez "+ Ajouter Local" en haut.</p></div>
+          <div className="space-y-2"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" /> Gestion des Projets</h3><p>Vos projets sont sauvegardés automatiquement dans votre espace personnel sécurisé.</p></div>
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-end bg-slate-50">
           <button onClick={onClose} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">J'ai compris</button>
@@ -202,7 +168,13 @@ const INITIAL_ROOMS: RoomInput[] = [{ id: 'room-1', name: 'Zone Vente Principale
 // 3. APPLICATION PRINCIPALE
 // ==========================================
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
+  // Charger l'utilisateur connecté s'il existe en mémoire
+  useEffect(() => {
+    const savedUser = localStorage.getItem('gpt_current_user');
+    if (savedUser) setCurrentUser(savedUser);
+  }, []);
 
   const [category, setCategory] = useState<BuildingCategory>('erp');
   const [erpType, setERPType] = useState<ERPType>('M');
@@ -275,18 +247,36 @@ export default function App() {
     }
   };
 
-  if (!isAuthenticated) return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+  if (!currentUser) return <AuthScreen onLogin={(user) => setCurrentUser(user)} />;
   
   if (isPrintView) return <PrintReport rooms={rooms} buildingName={buildingName} address={address} author={author} category={category} erpType={erpType} erpCategory={erpCategory} habitationFamily={habitationFamily} onClose={() => setIsPrintView(false)} />;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-white relative">
-      <Header buildingName={buildingName} onChangeBuildingName={setBuildingName} onOpenGuide={() => setIsGuideOpen(true)} onOpenChecklist={() => setIsChecklistOpen(true)} onPrint={() => setIsPrintView(true)} onAddRoom={handleAddRoom} roomCount={rooms.length} />
+      <Header 
+        buildingName={buildingName} 
+        onChangeBuildingName={setBuildingName} 
+        onOpenGuide={() => setIsGuideOpen(true)} 
+        onOpenChecklist={() => setIsChecklistOpen(true)} 
+        onPrint={() => setIsPrintView(true)} 
+        onAddRoom={handleAddRoom} 
+        roomCount={rooms.length} 
+      />
       
+      {/* Barre de déconnexion rapide et info utilisateur */}
+      <div className="bg-slate-900 text-white px-4 py-1.5 text-xs flex justify-between items-center">
+        <span>Connecté en tant que : <strong className="text-amber-400 uppercase">{currentUser}</strong></span>
+        <button 
+          onClick={() => { localStorage.removeItem('gpt_current_user'); setCurrentUser(null); }}
+          className="text-slate-400 hover:text-white underline font-medium"
+        >
+          Se déconnecter
+        </button>
+      </div>
+
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-24">
         <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
             <span className="text-xs font-bold text-slate-800">Modèles Types Prédéfinis :</span>
           </div>
           <div className="flex flex-wrap gap-1.5 text-xs">
