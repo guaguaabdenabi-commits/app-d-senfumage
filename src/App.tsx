@@ -10,8 +10,126 @@ import { ProjectSummary } from './components/ProjectSummary';
 import { RegulatoryGuideModal } from './components/RegulatoryGuideModal';
 import { InspectionChecklist } from './components/InspectionChecklist';
 import { PrintReport } from './components/PrintReport';
-import { HelpCircle, Plus, Layers, Trash2, X, Sparkles, Flame } from 'lucide-react';
+import { HelpCircle, Plus, Layers, Trash2, X, Sparkles, Flame, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 
+// ==========================================
+// 1. ÉCRAN DE CONNEXION (PORTAIL DE SÉCURITÉ)
+// ==========================================
+const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(false);
+    
+    // Simulation d'un temps de chargement (validation réseau)
+    setTimeout(() => {
+      // CODE PROVISOIRE : Accepte "admin" comme mot de passe pour tester l'interface
+      if (password === 'admin') {
+        onLogin();
+      } else {
+        setError(true);
+        setIsLoading(false);
+      }
+    }, 800);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 selection:bg-amber-500 selection:text-white relative overflow-hidden">
+      {/* Background design */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-amber-600/10 blur-[120px]"></div>
+        <div className="absolute bottom-[10%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[100px]"></div>
+      </div>
+
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-500">
+        <div className="p-8 text-center bg-slate-50 border-b border-slate-100">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg mb-4 transform -rotate-3 hover:rotate-0 transition-transform">
+            <Flame className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">G.P-T Bureau d'Études</h1>
+          <p className="text-sm font-medium text-amber-600 mt-1 uppercase tracking-widest">Désenfumage Expert</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-5">
+          {error && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg flex items-start gap-2">
+              <Lock className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>Identifiants incorrects. En attente de la validation par email. (Astuce : tapez "admin" en mot de passe pour tester)</span>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-700 uppercase">Adresse E-mail</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="w-5 h-5 text-slate-400" />
+              </div>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all outline-none"
+                placeholder="votre.email@gpro-tech.com"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe / Code</label>
+              <a href="#" className="text-[10px] font-bold text-amber-600 hover:text-amber-700">Demander un accès</a>
+            </div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <ShieldCheck className="w-5 h-5 text-slate-400" />
+              </div>
+              <input 
+                type="password" 
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all outline-none"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={isLoading}
+            className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <span className="animate-pulse">Vérification en cours...</span>
+            ) : (
+              <>
+                <span>Connexion Sécurisée</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
+          </button>
+        </form>
+        
+        <div className="px-8 pb-8 text-center">
+          <p className="text-[10px] font-medium text-slate-400">
+            Accès strictement réservé au personnel autorisé de G.P-T Bureau d'Assistance Technique. Tout accès non autorisé est enregistré.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ==========================================
+// 2. MODAL D'AIDE ET VARIABLES INITIALES
+// ==========================================
 const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   if (!isOpen) return null;
   return (
@@ -33,21 +151,21 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
             </h3>
             <p>Il y a deux façons d'ajouter un nouveau local à étudier :</p>
             <ul className="list-disc pl-5 space-y-1 text-slate-600">
-              <li>Cliquez sur le bouton <strong>"Dossier & Bilan Global"</strong> (en haut à droite), puis descendez pour cliquer sur <strong>"Ajouter un nouveau local"</strong>.</li>
-              <li>Ou utilisez simplement le bouton <strong>"+ Ajouter Local"</strong> tout en haut à droite de l'écran principal.</li>
+              <li>Cliquez sur le bouton <strong>"Dossier & Bilan Global"</strong>, puis descendez pour cliquer sur <strong>"Ajouter un nouveau local"</strong>.</li>
+              <li>Ou utilisez simplement le bouton <strong>"+ Ajouter Local"</strong> tout en haut à droite.</li>
             </ul>
           </div>
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
               <Layers className="w-5 h-5 text-amber-500" /> Comment naviguer et renommer ?
             </h3>
-            <p>Cliquez sur l'onglet du local souhaité dans la barre grise. Pour le renommer, modifiez simplement le champ texte tout en haut de la section <strong>"2. Paramètres de la Zone / Local"</strong> à gauche.</p>
+            <p>Cliquez sur l'onglet du local souhaité. Pour le renommer, modifiez le champ texte en haut de la section <strong>"2. Paramètres de la Zone"</strong> à gauche.</p>
           </div>
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
               <Trash2 className="w-5 h-5 text-red-500" /> Comment supprimer une zone ?
             </h3>
-            <p>Allez dans l'onglet <strong>"Dossier & Bilan Global"</strong> et cliquez sur la corbeille rouge à droite de la ligne correspondante.</p>
+            <p>Allez dans l'onglet <strong>"Dossier & Bilan Global"</strong> et cliquez sur la corbeille rouge.</p>
           </div>
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-end bg-slate-50">
@@ -80,7 +198,13 @@ const INITIAL_ROOMS: RoomInput[] = [
   },
 ];
 
+// ==========================================
+// 3. APPLICATION PRINCIPALE
+// ==========================================
 export default function App() {
+  // === ÉTAT D'AUTHENTIFICATION ===
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   const [category, setCategory] = useState<BuildingCategory>('erp');
   const [erpType, setERPType] = useState<ERPType>('M');
   const [erpCategory, setERPCategory] = useState<ERPCategory>('1');
@@ -88,8 +212,6 @@ export default function App() {
 
   const [buildingName, setBuildingName] = useState('Centre Commercial & Tertiaire Grand Ouest');
   const [address, setAddress] = useState('24 Avenue de la Grande Armée, 75017 Paris');
-  
-  // MISE À JOUR DE L'AUTEUR (G.P-T) :
   const [author, setAuthor] = useState('G.P-T Bureau d\'Assistance Technique');
 
   const [rooms, setRooms] = useState<RoomInput[]>(INITIAL_ROOMS);
@@ -173,6 +295,11 @@ export default function App() {
       setActiveRoomId('r1');
     }
   };
+
+  // === VERROUILLAGE SI NON AUTHENTIFIÉ ===
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   if (isPrintView) {
     return (
