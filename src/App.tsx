@@ -88,7 +88,9 @@ export default function App() {
 
   const [buildingName, setBuildingName] = useState('Centre Commercial & Tertiaire Grand Ouest');
   const [address, setAddress] = useState('24 Avenue de la Grande Armée, 75017 Paris');
-  const [author, setAuthor] = useState('G.P-T Bureau d\'Études CVC & Sécurité Incendie');
+  
+  // MISE À JOUR DE L'AUTEUR (G.P-T) :
+  const [author, setAuthor] = useState('G.P-T Bureau d\'Assistance Technique');
 
   const [rooms, setRooms] = useState<RoomInput[]>(INITIAL_ROOMS);
   const [activeRoomId, setActiveRoomId] = useState<string>(INITIAL_ROOMS[0].id);
