@@ -59,6 +59,15 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
   const extCols = Math.max(1, Math.ceil(Math.sqrt(customExtCount * (L / W))));
   const extRows = Math.max(1, Math.ceil(customExtCount / extCols));
 
+  // Variables calculées pour la vue en Coupe (Évite les fonctions imbriquées dans le JSX)
+  const totalPx = 255;
+  const safeCeilingHeight = Math.max(ceilingHeight, 1.8);
+  const smokePx = (smokeE / safeCeilingHeight) * totalPx;
+  const clearPx = (clearH / safeCeilingHeight) * totalPx;
+  const screenPx = (screenDepth / safeCeilingHeight) * totalPx;
+  const smokeTop = 105;
+  const smokeBottom = 105 + smokePx;
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
@@ -100,7 +109,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 border border-slate-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <span className="text-xs font-bold text-rose-700">Points d'Extraction</span>
+              <span className="text-xs font-bold text-rose-700">Points d&apos;Extraction</span>
               <span className="text-[10px] text-slate-500">Calcul initial : {defaultExtCount}</span>
             </div>
             <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md p-1 shadow-sm">
@@ -111,7 +120,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
           </div>
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <span className="text-xs font-bold text-sky-700">Grilles d'Amenée d'Air</span>
+              <span className="text-xs font-bold text-sky-700">Grilles d&apos;Amenée d&apos;Air</span>
               <span className="text-[10px] text-slate-500">Calcul initial : {defaultInletCount}</span>
             </div>
             <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md p-1 shadow-sm">
@@ -127,10 +136,10 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
         <div className="p-3 bg-rose-100 border border-rose-300 rounded-lg flex items-start gap-3 shadow-inner">
           <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h4 className="text-xs font-bold text-rose-900 uppercase">Erreur Normative IT 246 : Espacement > 30 mètres</h4>
+            <h4 className="text-xs font-bold text-rose-900 uppercase">Erreur Normative IT 246 : Espacement &gt; 30 mètres</h4>
             <p className="text-[11px] text-rose-700 mt-1">
-              Les dimensions du local ({length}m × {width}m) créent des zones mortes. La règle impose un point d'extraction tous les 30m maximum. 
-              <strong> Il faut au minimum {minRequiredGeometricPoints} point(s) d'extraction</strong> pour couvrir cette géométrie, mais vous n'en avez prévu que {customExtCount}.
+              Les dimensions du local ({length}m × {width}m) créent des zones mortes. La règle impose un point d&apos;extraction tous les 30m maximum. 
+              <strong> Il faut au minimum {minRequiredGeometricPoints} point(s) d&apos;extraction</strong> pour couvrir cette géométrie, mais vous n&apos;en avez prévu que {customExtCount}.
             </p>
           </div>
         </div>
@@ -140,7 +149,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
         <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           <span className="text-xs font-semibold text-emerald-800">
-            Implantation validée : Les rayons d'action couvrent l'intégralité du volume.
+            Implantation validée : Les rayons d&apos;action couvrent l&apos;intégralité du volume.
           </span>
         </div>
       )}
@@ -168,65 +177,55 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
             <rect x="70" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
             <rect x="715" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
 
-            {(() => {
-              const totalPx = 255;
-              const smokePx = (smokeE / ceilingHeight) * totalPx;
-              const clearPx = (clearH / ceilingHeight) * totalPx;
-              const smokeTop = 105;
-              const smokeBottom = 105 + smokePx;
+            <g>
+              <rect x="85" y={smokeTop} width="630" height={smokePx} fill="url(#smokeGradient)" />
+              <line x1="85" y1={smokeBottom} x2="715" y2={smokeBottom} stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" />
+              <text x="400" y={smokeBottom - 8} textAnchor="middle" fill="#fbbf24" fontSize="12" fontWeight="bold">
+                Interface de fumée (H&apos; = {clearH.toFixed(2)} m)
+              </text>
+              <text x="400" y={smokeTop + smokePx / 2} textAnchor="middle" fill="#f87171" fontSize="13" fontWeight="bold">
+                Zone enfumée (E = {smokeE.toFixed(2)} m)
+              </text>
+              <text x="400" y={smokeBottom + clearPx / 2} textAnchor="middle" fill="#38bdf8" fontSize="13" fontWeight="600">
+                Zone libre de fumée (H&apos; = {clearH.toFixed(2)} m)
+              </text>
 
-              return (
-                <g>
-                  <rect x="85" y={smokeTop} width="630" height={smokePx} fill="url(#smokeGradient)" />
-                  <line x1="85" y1={smokeBottom} x2="715" y2={smokeBottom} stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" />
-                  <text x="400" y={smokeBottom - 8} textAnchor="middle" fill="#fbbf24" fontSize="12" fontWeight="bold">
-                    Interface de fumée (H' = {clearH.toFixed(2)} m)
-                  </text>
-                  <text x="400" y={smokeTop + smokePx / 2} textAnchor="middle" fill="#f87171" fontSize="13" fontWeight="bold">
-                    Zone enfumée (E = {smokeE.toFixed(2)} m)
-                  </text>
-                  <text x="400" y={smokeBottom + clearPx / 2} textAnchor="middle" fill="#38bdf8" fontSize="13" fontWeight="600">
-                    Zone libre de fumée (H' = {clearH.toFixed(2)} m)
-                  </text>
-
-                  {needsCanton && [300, 500].map((xPos, idx) => (
-                    <g key={idx}>
-                      <line x1={xPos} y1="105" x2={xPos} y2={105 + (screenDepth / ceilingHeight) * totalPx} stroke="#ef4444" strokeWidth="5" strokeLinecap="square" />
-                      <text x={xPos + 8} y={105 + ((screenDepth / ceilingHeight) * totalPx) / 2} fill="#fca5a5" fontSize="10" fontWeight="bold">Écran (≥ {screenDepth.toFixed(2)} m)</text>
-                    </g>
-                  ))}
-
-                  {mode === 'naturel' ? (
-                    [200, 400, 600].map((vx, i) => (
-                      <g key={i}>
-                        <rect x={vx - 22} y="75" width="44" height="30" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="3" />
-                        <line x1={vx - 22} y1="75" x2={vx + 15} y2="50" stroke="#ffffff" strokeWidth="2.5" />
-                        <path d={`M ${vx} 70 L ${vx} 40 M ${vx - 5} 50 L ${vx} 40 L ${vx + 5} 50`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
-                        <text x={vx} y="30" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">DENFC</text>
-                      </g>
-                    ))
-                  ) : (
-                    [220, 580].map((mx, i) => (
-                      <g key={i}>
-                        <rect x={mx - 30} y="90" width="60" height="25" fill="#dc2626" stroke="#fecaca" strokeWidth="1.5" rx="2" />
-                        <line x1={mx - 20} y1="95" x2={mx - 20} y2="110" stroke="#fff" strokeWidth="1" />
-                        <line x1={mx + 20} y1="95" x2={mx + 20} y2="110" stroke="#fff" strokeWidth="1" />
-                        <path d={`M ${mx} 90 L ${mx} 45 M ${mx - 6} 58 L ${mx} 45 L ${mx + 6} 58`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
-                        <text x={mx} y="35" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">EXT</text>
-                      </g>
-                    ))
-                  )}
-
-                  <g>
-                    <rect x="70" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
-                    <path d="M 40 320 L 115 320 M 100 312 L 115 320 L 100 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
-                    <text x="35" y="308" textAnchor="end" fill="#38bdf8" fontSize="10" fontWeight="bold">Amenée d'air</text>
-                    <rect x="715" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
-                    <path d="M 760 320 L 685 320 M 700 312 L 685 320 L 700 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
-                  </g>
+              {needsCanton && [300, 500].map((xPos, idx) => (
+                <g key={idx}>
+                  <line x1={xPos} y1="105" x2={xPos} y2={105 + screenPx} stroke="#ef4444" strokeWidth="5" strokeLinecap="square" />
+                  <text x={xPos + 8} y={105 + (screenPx / 2)} fill="#fca5a5" fontSize="10" fontWeight="bold">Écran (&ge; {screenDepth.toFixed(2)} m)</text>
                 </g>
-              );
-            })()}
+              ))}
+
+              {mode === 'naturel' ? (
+                [200, 400, 600].map((vx, i) => (
+                  <g key={i}>
+                    <rect x={vx - 22} y="75" width="44" height="30" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="3" />
+                    <line x1={vx - 22} y1="75" x2={vx + 15} y2="50" stroke="#ffffff" strokeWidth="2.5" />
+                    <path d={`M ${vx} 70 L ${vx} 40 M ${vx - 5} 50 L ${vx} 40 L ${vx + 5} 50`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
+                    <text x={vx} y="30" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">DENFC</text>
+                  </g>
+                ))
+              ) : (
+                [220, 580].map((mx, i) => (
+                  <g key={i}>
+                    <rect x={mx - 30} y="90" width="60" height="25" fill="#dc2626" stroke="#fecaca" strokeWidth="1.5" rx="2" />
+                    <line x1={mx - 20} y1="95" x2={mx - 20} y2="110" stroke="#fff" strokeWidth="1" />
+                    <line x1={mx + 20} y1="95" x2={mx + 20} y2="110" stroke="#fff" strokeWidth="1" />
+                    <path d={`M ${mx} 90 L ${mx} 45 M ${mx - 6} 58 L ${mx} 45 L ${mx + 6} 58`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
+                    <text x={mx} y="35" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">EXT</text>
+                  </g>
+                ))
+              )}
+
+              <g>
+                <rect x="70" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
+                <path d="M 40 320 L 115 320 M 100 312 L 115 320 L 100 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
+                <text x="35" y="308" textAnchor="end" fill="#38bdf8" fontSize="10" fontWeight="bold">Amenée d&apos;air</text>
+                <rect x="715" y="295" width="15" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
+                <path d="M 760 320 L 685 320 M 700 312 L 685 320 L 700 328" stroke="#38bdf8" strokeWidth="2.5" fill="none" />
+              </g>
+            </g>
           </svg>
         ) : (
           <svg viewBox="0 0 800 450" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
@@ -243,59 +242,4 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }
               const r = Math.floor(i / extCols);
               const c = i % extCols;
               const cx = offsetX + (c + 0.5) * (drawW / extCols);
-              const cy = offsetY + (r + 0.5) * (drawH / extRows);
-              const radiusOfAction = 15 * scale; 
-              return (
-                <g key={`ext-${i}`}>
-                  <circle cx={cx} cy={cy} r={radiusOfAction} fill={hasGeometricError ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.1)"} stroke={hasGeometricError ? "#ef4444" : "#10b981"} strokeDasharray="4 4" strokeWidth="1" />
-                  
-                  {mode === 'naturel' ? (
-                    <>
-                      <rect x={cx - 12} y={cy - 12} width="24" height="24" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="2" />
-                      <line x1={cx - 8} y1={cy - 8} x2={cx + 8} y2={cy + 8} stroke="#ffffff" strokeWidth="1" />
-                      <line x1={cx + 8} y1={cy - 8} x2={cx - 8} y2={cy + 8} stroke="#ffffff" strokeWidth="1" />
-                    </>
-                  ) : (
-                    <>
-                      <rect x={cx - 12} y={cy - 12} width="24" height="24" fill="#dc2626" stroke="#ffffff" strokeWidth="1" />
-                      <line x1={cx - 8} y1={cy - 8} x2={cx + 8} y2={cy - 8} stroke="#fff" strokeWidth="1" />
-                      <line x1={cx - 8} y1={cy} x2={cx + 8} y2={cy} stroke="#fff" strokeWidth="1" />
-                      <line x1={cx - 8} y1={cy + 8} x2={cx + 8} y2={cy + 8} stroke="#fff" strokeWidth="1" />
-                    </>
-                  )}
-                  <text x={cx} y={cy + 22} textAnchor="middle" fill="#fca5a5" fontSize="9" fontWeight="bold">EXT</text>
-                </g>
-              );
-            })}
-
-            {Array.from({ length: customInletCount }).map((_, i) => {
-              const cx = offsetX + (i + 0.5) * (drawW / customInletCount);
-              const cy = offsetY + drawH;
-              return (
-                <g key={`inlet-${i}`}>
-                  <rect x={cx - 15} y={cy - 4} width="30" height="8" fill="#0284c7" stroke="#38bdf8" strokeWidth="1.5" />
-                  <path d={`M ${cx} ${cy + 15} L ${cx} ${cy - 15} M ${cx - 4} ${cy - 7} L ${cx} ${cy - 15} L ${cx + 4} ${cy - 7}`} stroke="#38bdf8" strokeWidth="2" fill="none" />
-                  <text x={cx} y={cy + 25} textAnchor="middle" fill="#38bdf8" fontSize="9" fontWeight="bold">AN</text>
-                </g>
-              );
-            })}
-          </svg>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs text-slate-600">
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 bg-red-600 rounded-sm inline-block" />
-          <span>Extraction (Rayon d'action = 15m)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 bg-sky-600 rounded-sm inline-block" />
-          <span>Amenée d'Air Neuf (AN)</span>
-        </div>
-        <div className="text-slate-400 font-mono">
-          Espace max : 30m / Mur max : 15m
-        </div>
-      </div>
-    </div>
-  );
-};
+              const cy = offsetY + (r + 0.5) * (draw
