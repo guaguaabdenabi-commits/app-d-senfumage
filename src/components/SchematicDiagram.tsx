@@ -1,382 +1,245 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { AlertTriangle, CheckCircle, Info, Wind, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { RoomInput, CalculationResult } from '../types/desenfumage';
-import { Layers, AlertTriangle, Plus, Minus, CheckCircle2, Move, Ruler } from 'lucide-react';
 
-interface SchematicDiagramProps {
+interface Props {
   room: RoomInput;
   calc: CalculationResult;
 }
 
-type ElementType = 'ext' | 'an' | 'door';
-interface SchematicElement {
-  id: string;
-  type: ElementType;
-  x: number;
-  y: number;
-}
+export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
+  const [view, setView] = useState<'plan' | 'coupe'>('coupe');
 
-export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ room, calc }) => {
-  const [viewMode, setViewMode] = useState<'section' | 'plan'>('section');
-  const [showDims, setShowDims] = useState<boolean>(true);
+  // Sécurisation des valeurs géométriques (Correction des NaN)
+  const H = room.ceilingHeight || 3;
+  const L = room.length || 10;
+  const W = room.width || 10;
+  
+  // Extraction sécurisée des calculs
+  const clearH = calc?.cantonment?.clearHeightM || (H / 2);
+  const smokeE = calc?.cantonment?.smokeLayerThicknessM || (H - clearH);
 
-  const { ceilingHeight, length, width, mode } = room;
-  const { cantonment, natural, mechanical } = calc;
+  // MOTEUR DE RÈGLES IT 246 (Issu du PDF - Figures 4, 5, 6)
+  const isMech = room.mode === 'mecanique';
+  const isCirc = room.spaceKind === 'circulation';
+  
+  let maxDistanceRule = 0;
+  let ruleReference = "";
 
-  const clearH = cantonment.clearHeightM;
-  const smokeE = cantonment.smokeLayerThicknessM;
-  const screenDepth = cantonment.screenDepthM;
-  const needsCanton = cantonment.required;
+  if (isCirc) {
+    // Règles pour les circulations (Couloirs)
+    maxDistanceRule = isMech ? 15 : 10;
+    ruleReference = `Distance max entre Amenée et Extraction : ${maxDistanceRule}m (IT 246 - Art. ${isMech ? '6.2' : '6.1'})`;
+  } else {
+    // Règles pour les locaux
+    maxDistanceRule = isMech ? (4 * H) : Math.min(30, 4 * H);
+    ruleReference = `Distance max d'un point à l'extraction : ${maxDistanceRule.toFixed(1)}m (IT 246 - Art. ${isMech ? '7.2.2' : '7.1.3'})`;
+  }
 
-  const defaultExtCount = mode === 'naturel' ? natural.denfcCountTotal : mechanical.suggestedExtractionGrilleCount;
-  const defaultInletCount = mode === 'naturel' ? Math.max(1, Math.ceil(natural.airInletGeometricAreaM2 / 2)) : Math.max(1, Math.ceil(mechanical.airInletGrilleMinSectionM2 / 0.5));
+  // ÉTAT DU PLAN INTERACTIF (Positions des grilles en mètres)
+  const [posAmenee, setPosAmenee] = useState({ x: 2, y: W / 2 });
+  const [posExtraction, setPosExtraction] = useState({ x: L - 2, y: W / 2 });
+  
+  // Calcul de la distance en temps réel par théorème de Pythagore
+  const currentDistance = Math.sqrt(Math.pow(posExtraction.x - posAmenee.x, 2) + Math.pow(posExtraction.y - posAmenee.y, 2));
+  const isDistanceValid = currentDistance <= maxDistanceRule;
 
-  const [customExtCount, setCustomExtCount] = useState<number>(defaultExtCount);
-  const [customInletCount, setCustomInletCount] = useState<number>(defaultInletCount);
-  const [doorCount, setDoorCount] = useState<number>(1);
-
-  // Drag & Drop State
+  // Gestion du Glisser-Déposer (Drag & Drop) simple sur le plan
   const svgRef = useRef<SVGSVGElement>(null);
-  const [elements, setElements] = useState<SchematicElement[]>([]);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-
-  const maxDrawW = 680;
-  const maxDrawH = 320;
-  const L = Math.max(length, 1);
-  const W = Math.max(width, 1);
-  const scale = Math.min(maxDrawW / L, maxDrawH / W);
-  const drawW = L * scale;
-  const drawH = W * scale;
-  const offsetX = (800 - drawW) / 2;
-  const offsetY = (450 - drawH) / 2;
-
-  // Initialisation des positions
-  useEffect(() => {
-    const newElements: SchematicElement[] = [];
-    const extCols = Math.max(1, Math.ceil(Math.sqrt(customExtCount * (L / W))));
-    const extRows = Math.max(1, Math.ceil(customExtCount / extCols));
-
-    // Extraction
-    for (let i = 0; i < customExtCount; i++) {
-      const r = Math.floor(i / extCols);
-      const c = i % extCols;
-      newElements.push({
-        id: `ext-${i}`, type: 'ext',
-        x: offsetX + (c + 0.5) * (drawW / extCols),
-        y: offsetY + (r + 0.5) * (drawH / extRows)
-      });
-    }
-
-    // Air Neuf
-    for (let i = 0; i < customInletCount; i++) {
-      newElements.push({
-        id: `an-${i}`, type: 'an',
-        x: offsetX + (i + 0.5) * (drawW / customInletCount),
-        y: offsetY + drawH
-      });
-    }
-
-    // Portes
-    for (let i = 0; i < doorCount; i++) {
-      newElements.push({
-        id: `door-${i}`, type: 'door',
-        x: offsetX + (i + 0.5) * (drawW / doorCount),
-        y: offsetY
-      });
-    }
-
-    setElements(newElements);
-  }, [customExtCount, customInletCount, doorCount, L, W, scale, offsetX, offsetY, drawW, drawH]);
-
-  // Drag & Drop Handlers
-  const handleMouseDown = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setDraggingId(id);
-  };
+  const [draggingItem, setDraggingItem] = useState<'amenee' | 'extraction' | null>(null);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggingId || !svgRef.current) return;
-    const pt = svgRef.current.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const cursor = pt.matrixTransform(svgRef.current.getScreenCTM()!.inverse());
+    if (!draggingItem || !svgRef.current) return;
+    
+    const rect = svgRef.current.getBoundingClientRect();
+    // Conversion des pixels de la souris en mètres dans la pièce
+    let x = ((e.clientX - rect.left) / rect.width) * L;
+    let y = ((e.clientY - rect.top) / rect.height) * W;
 
-    setElements(prev => prev.map(el => {
-      if (el.id === draggingId) {
-        let nx = cursor.x;
-        let ny = cursor.y;
+    // Limiter aux bords de la pièce
+    x = Math.max(0.5, Math.min(x, L - 0.5));
+    y = Math.max(0.5, Math.min(y, W - 0.5));
 
-        if (el.type === 'door' || el.type === 'an') {
-          const dt = Math.abs(ny - offsetY);
-          const db = Math.abs(ny - (offsetY + drawH));
-          const dl = Math.abs(nx - offsetX);
-          const dr = Math.abs(nx - (offsetX + drawW));
-          const m = Math.min(dt, db, dl, dr);
-          if (m === dt) ny = offsetY;
-          else if (m === db) ny = offsetY + drawH;
-          else if (m === dl) nx = offsetX;
-          else nx = offsetX + drawW;
-        }
-
-        nx = Math.max(offsetX, Math.min(offsetX + drawW, nx));
-        ny = Math.max(offsetY, Math.min(offsetY + drawH, ny));
-        return { ...el, x: nx, y: ny };
-      }
-      return el;
-    }));
+    if (draggingItem === 'amenee') setPosAmenee({ x, y });
+    if (draggingItem === 'extraction') setPosExtraction({ x, y });
   };
 
-  const handleMouseUp = () => setDraggingId(null);
-
-  const requiredCols = Math.ceil(length / 30);
-  const requiredRows = Math.ceil(width / 30);
-  const minRequiredGeometricPoints = requiredCols * requiredRows;
-  const hasGeometricError = customExtCount < minRequiredGeometricPoints;
-
-  // Variables Coupe
-  const totalPx = 255;
-  const safeCeilingHeight = Math.max(ceilingHeight, 1.8);
-  const smokePx = (smokeE / safeCeilingHeight) * totalPx;
-  const clearPx = (clearH / safeCeilingHeight) * totalPx;
-  const screenPx = (screenDepth / safeCeilingHeight) * totalPx;
-  const smokeTop = 105;
-  const smokeBottom = 105 + smokePx;
-
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      {/* EN-TÊTE DU MODULE */}
+      <div className="bg-slate-900 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-amber-600" />
-            <h3 className="text-base font-semibold text-slate-800">CA0 & Implantation</h3>
-            {viewMode === 'plan' && (
-              <span className="flex items-center gap-1 text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded animate-pulse">
-                <Move className="w-3 h-3" /> Interactif
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">Glissez-déposez les grilles. La Coupe se mettra à jour !</p>
+          <h3 className="text-white font-bold text-lg flex items-center gap-2">
+            <Wind className="w-5 h-5 text-amber-400" />
+            Module CAO & Validation IT 246
+          </h3>
+          <p className="text-slate-400 text-xs mt-1">Conception Géométrique et Aéraulique</p>
         </div>
-        <div className="inline-flex p-1 bg-slate-100 rounded-lg self-start sm:self-auto shrink-0">
-          <button type="button" onClick={() => setViewMode('section')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'section' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>Coupe</button>
-          <button type="button" onClick={() => setViewMode('plan')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'plan' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>Plan / CAO</button>
-        </div>
-      </div>
-
-      {viewMode === 'plan' && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 border border-slate-200 rounded-lg p-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-rose-700">Extraction (EXT)</span>
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded p-1">
-              <button onClick={() => setCustomExtCount(Math.max(1, customExtCount - 1))} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Minus className="w-3 h-3" /></button>
-              <span className="text-xs font-bold text-slate-800 w-6 text-center">{customExtCount}</span>
-              <button onClick={() => setCustomExtCount(customExtCount + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Plus className="w-3 h-3" /></button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-sky-700">Amenée d'Air (AN)</span>
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded p-1">
-              <button onClick={() => setCustomInletCount(Math.max(1, customInletCount - 1))} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Minus className="w-3 h-3" /></button>
-              <span className="text-xs font-bold text-slate-800 w-6 text-center">{customInletCount}</span>
-              <button onClick={() => setCustomInletCount(customInletCount + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Plus className="w-3 h-3" /></button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-emerald-700">Portes (Sorties)</span>
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded p-1">
-              <button onClick={() => setDoorCount(Math.max(0, doorCount - 1))} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Minus className="w-3 h-3" /></button>
-              <span className="text-xs font-bold text-slate-800 w-6 text-center">{doorCount}</span>
-              <button onClick={() => setDoorCount(doorCount + 1)} className="p-1 hover:bg-slate-100 rounded text-slate-600"><Plus className="w-3 h-3" /></button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1 justify-end">
-            <button onClick={() => setShowDims(!showDims)} className={`flex items-center justify-center gap-2 py-1.5 px-2 rounded border text-[10px] font-bold transition-colors ${showDims ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>
-              <Ruler className="w-3.5 h-3.5" /> Cotations
-            </button>
-          </div>
-        </div>
-      )}
-
-      {viewMode === 'plan' && hasGeometricError && (
-        <div className="p-3 bg-rose-100 border border-rose-300 rounded-lg flex items-start gap-3 shadow-inner">
-          <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <h4 className="text-xs font-bold text-rose-900 uppercase">Erreur IT 246 : Espacement &gt; 30 mètres</h4>
-            <p className="text-[11px] text-rose-700 mt-1">Au minimum {minRequiredGeometricPoints} point(s) d'extraction requis pour couvrir cette géométrie sans zone morte.</p>
-          </div>
-        </div>
-      )}
-
-      {viewMode === 'plan' && !hasGeometricError && (
-        <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span className="text-xs font-semibold text-emerald-800">Implantation validée : Couverture optimale.</span>
-        </div>
-      )}
-
-      <div className="relative w-full aspect-[16/9] max-h-[400px] bg-slate-900 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center p-2 cursor-crosshair">
-        {viewMode === 'section' ? (
-          <svg viewBox="0 0 800 450" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
-            <defs>
-              <linearGradient id="smokeGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1e293b" stopOpacity="0.95" />
-                <stop offset="60%" stopColor="#334155" stopOpacity="0.75" />
-                <stop offset="100%" stopColor="#475569" stopOpacity="0.1" />
-              </linearGradient>
-              <linearGradient id="outsideGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0f172a" /><stop offset="100%" stopColor="#1e293b" />
-              </linearGradient>
-            </defs>
-            <rect x="0" y="0" width="800" height="450" fill="url(#outsideGradient)" />
-            <rect x="80" y="360" width="640" height="25" fill="#334155" />
-            <line x1="80" y1="360" x2="720" y2="360" stroke="#94a3b8" strokeWidth="2" />
-            <text x="85" y="378" fill="#cbd5e1" fontSize="11">Plancher / Niveau fini (Sol ±0.00)</text>
-            <rect x="80" y="80" width="640" height="25" fill="#334155" />
-            <line x1="80" y1="105" x2="720" y2="105" stroke="#94a3b8" strokeWidth="2" />
-            <text x="85" y="98" fill="#cbd5e1" fontSize="11">Toiture / Sous-face plafond (+{ceilingHeight.toFixed(2)} m)</text>
-            <rect x="70" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
-            <rect x="715" y="80" width="15" height="305" fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
-            
-            <g>
-              <rect x="85" y={smokeTop} width="630" height={smokePx} fill="url(#smokeGradient)" />
-              <line x1="85" y1={smokeBottom} x2="715" y2={smokeBottom} stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" />
-              <text x="400" y={smokeBottom - 8} textAnchor="middle" fill="#fbbf24" fontSize="12" fontWeight="bold">H' = {clearH.toFixed(2)} m</text>
-              <text x="400" y={smokeTop + smokePx / 2} textAnchor="middle" fill="#f87171" fontSize="13" fontWeight="bold">E = {smokeE.toFixed(2)} m</text>
-              
-              {/* Écrans de Cantonnement Synchronisés */}
-              {needsCanton && Array.from({ length: cantonment.cantonCount - 1 }).map((_, idx) => {
-                const xPos = 80 + (idx + 1) * (640 / cantonment.cantonCount);
-                return (
-                  <g key={`sec-canton-${idx}`}>
-                    <line x1={xPos} y1="105" x2={xPos} y2={105 + screenPx} stroke="#ef4444" strokeWidth="5" strokeLinecap="square" />
-                    <text x={xPos + 8} y={105 + (screenPx / 2)} fill="#fca5a5" fontSize="10" fontWeight="bold">Écran</text>
-                  </g>
-                );
-              })}
-
-              {/* Extraction Synchronisée au Plan */}
-              {elements.filter(e => e.type === 'ext').map(el => {
-                const vx = 80 + ((el.x - offsetX) / drawW) * 640;
-                return (
-                  <g key={`sec-${el.id}`}>
-                    {mode === 'naturel' ? (
-                      <>
-                        <rect x={vx - 22} y="75" width="44" height="30" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" rx="3" />
-                        <line x1={vx - 22} y1="75" x2={vx + 15} y2="50" stroke="#ffffff" strokeWidth="2.5" />
-                        <path d={`M ${vx} 70 L ${vx} 40 M ${vx - 5} 50 L ${vx} 40 L ${vx + 5} 50`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
-                        <text x={vx} y="30" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">DENFC</text>
-                      </>
-                    ) : (
-                      <>
-                        <rect x={vx - 30} y="90" width="60" height="25" fill="#dc2626" stroke="#fecaca" strokeWidth="1.5" rx="2" />
-                        <line x1={vx - 20} y1="95" x2={vx - 20} y2="110" stroke="#fff" strokeWidth="1" />
-                        <line x1={vx + 20} y1="95" x2={vx + 20} y2="110" stroke="#fff" strokeWidth="1" />
-                        <path d={`M ${vx} 90 L ${vx} 45 M ${vx - 6} 58 L ${vx} 45 L ${vx + 6} 58`} stroke="#ef4444" strokeWidth="2.5" fill="none" />
-                        <text x={vx} y="35" textAnchor="middle" fill="#f87171" fontSize="10" fontWeight="bold">EXT</text>
-                      </>
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* Amenées d'air Synchronisées */}
-              {elements.filter(e => e.type === 'an').map(el => {
-                const vx = 80 + ((el.x - offsetX) / drawW) * 640;
-                return (
-                  <g key={`sec-${el.id}`}>
-                    <rect x={vx - 15} y="305" width="30" height="55" fill="#0284c7" stroke="#7dd3fc" strokeWidth="1.5" />
-                    <path d={`M ${vx} 340 L ${vx} 315 M ${vx - 6} 325 L ${vx} 315 L ${vx + 6} 325`} stroke="#38bdf8" strokeWidth="2.5" fill="none" />
-                    <text x={vx} y="300" textAnchor="middle" fill="#38bdf8" fontSize="10" fontWeight="bold">AN</text>
-                  </g>
-                );
-              })}
-
-              {/* Portes Synchronisées */}
-              {elements.filter(e => e.type === 'door').map(el => {
-                const vx = 80 + ((el.x - offsetX) / drawW) * 640;
-                return (
-                  <g key={`sec-${el.id}`}>
-                    <rect x={vx - 20} y="220" width="40" height="140" fill="#16a34a" stroke="#4ade80" strokeWidth="1.5" rx="2" />
-                    <circle cx={vx + 10} cy="290" r="3" fill="#4ade80" />
-                    <text x={vx} y="210" textAnchor="middle" fill="#4ade80" fontSize="9" fontWeight="bold">PORTE</text>
-                  </g>
-                );
-              })}
-            </g>
-          </svg>
-        ) : (
-          <svg 
-            ref={svgRef}
-            viewBox="0 0 800 450" 
-            className="w-full h-full select-none" 
-            preserveAspectRatio="xMidYMid meet"
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+        
+        {/* BOUTONS DE BASCULE PLAN / COUPE */}
+        <div className="flex bg-slate-800 p-1 rounded-lg">
+          <button 
+            onClick={() => setView('coupe')}
+            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${view === 'coupe' ? 'bg-amber-500 text-slate-900 shadow-md' : 'text-slate-300 hover:text-white'}`}
           >
-            {showDims && (
-              <>
-                <line x1={offsetX} y1={offsetY - 20} x2={offsetX + drawW} y2={offsetY - 20} stroke="#94a3b8" strokeWidth="1" />
-                <line x1={offsetX} y1={offsetY - 25} x2={offsetX} y2={offsetY - 15} stroke="#94a3b8" strokeWidth="2" />
-                <line x1={offsetX + drawW} y1={offsetY - 25} x2={offsetX + drawW} y2={offsetY - 15} stroke="#94a3b8" strokeWidth="2" />
-                <text x={offsetX + drawW / 2} y={offsetY - 25} textAnchor="middle" fill="#cbd5e1" fontSize="12" fontWeight="bold">L = {length.toFixed(1)} m</text>
-
-                <line x1={offsetX - 20} y1={offsetY} x2={offsetX - 20} y2={offsetY + drawH} stroke="#94a3b8" strokeWidth="1" />
-                <line x1={offsetX - 25} y1={offsetY} x2={offsetX - 15} y2={offsetY} stroke="#94a3b8" strokeWidth="2" />
-                <line x1={offsetX - 25} y1={offsetY + drawH} x2={offsetX - 15} y2={offsetY + drawH} stroke="#94a3b8" strokeWidth="2" />
-                <text x={offsetX - 25} y={offsetY + drawH / 2} textAnchor="middle" fill="#cbd5e1" fontSize="12" fontWeight="bold" writingMode="vertical-rl" transform={`rotate(180, ${offsetX - 25}, ${offsetY + drawH / 2})`}>W = {width.toFixed(1)} m</text>
-              </>
-            )}
-
-            <rect x={offsetX} y={offsetY} width={drawW} height={drawH} fill="#0f172a" stroke={hasGeometricError ? "#ef4444" : "#475569"} strokeWidth={hasGeometricError ? "4" : "3"} />
-
-            {elements.map((el) => {
-              const isDragging = draggingId === el.id;
-              
-              return (
-                <g key={el.id} onMouseDown={(e) => handleMouseDown(e, el.id)} style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
-                  {el.type === 'ext' && (
-                    <>
-                      <circle cx={el.x} cy={el.y} r={15 * scale} fill={hasGeometricError ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.1)"} stroke={hasGeometricError ? "#ef4444" : "#10b981"} strokeDasharray="4 4" strokeWidth="1" className="pointer-events-none" />
-                      <rect x={el.x - 14} y={el.y - 14} width="28" height="28" fill="#dc2626" stroke="#ffffff" strokeWidth={isDragging ? "2" : "1"} rx="2" />
-                      <text x={el.x} y={el.y + 3} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold" className="pointer-events-none">EXT</text>
-                    </>
-                  )}
-                  {el.type === 'an' && (
-                    <>
-                      <rect x={el.x - 15} y={el.y - 8} width="30" height="16" fill="#0284c7" stroke="#38bdf8" strokeWidth={isDragging ? "2" : "1"} rx="2" />
-                      <text x={el.x} y={el.y + 3} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold" className="pointer-events-none">AN</text>
-                    </>
-                  )}
-                  {el.type === 'door' && (
-                    <>
-                      <rect x={el.x - 15} y={el.y - 4} width="30" height="8" fill="#16a34a" stroke="#4ade80" strokeWidth={isDragging ? "2" : "1"} rx="1" />
-                      <text x={el.x} y={el.y + 15} textAnchor="middle" fill="#4ade80" fontSize="8" fontWeight="bold" className="pointer-events-none">PORTE</text>
-                    </>
-                  )}
-
-                  {showDims && (
-                    <g className="pointer-events-none">
-                      <line x1={offsetX} y1={el.y} x2={el.x - 15} y2={el.y} stroke="#64748b" strokeWidth="1" strokeDasharray="2 2" />
-                      <rect x={offsetX + (el.x - offsetX)/2 - 12} y={el.y - 6} width="24" height="12" fill="#1e293b" rx="2" />
-                      <text x={offsetX + (el.x - offsetX)/2} y={el.y + 3} fill="#94a3b8" fontSize="8" textAnchor="middle">{((el.x - offsetX) / scale).toFixed(1)}m</text>
-                      
-                      <line x1={el.x} y1={offsetY} x2={el.x} y2={el.y - 15} stroke="#64748b" strokeWidth="1" strokeDasharray="2 2" />
-                      <rect x={el.x - 12} y={offsetY + (el.y - offsetY)/2 - 6} width="24" height="12" fill="#1e293b" rx="2" />
-                      <text x={el.x} y={offsetY + (el.y - offsetY)/2 + 3} fill="#94a3b8" fontSize="8" textAnchor="middle">{((el.y - offsetY) / scale).toFixed(1)}m</text>
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-        )}
+            Vue en Coupe
+          </button>
+          <button 
+            onClick={() => setView('plan')}
+            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${view === 'plan' ? 'bg-amber-500 text-slate-900 shadow-md' : 'text-slate-300 hover:text-white'}`}
+          >
+            Vue en Plan (Interactif)
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 pt-1 text-[11px] text-slate-600 font-medium">
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-red-600 rounded-sm" />Extraction (Rayon 15m)</div>
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-sky-600 rounded-sm" />Amenée d'Air</div>
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-green-600 rounded-sm" />Porte (Sortie)</div>
-        <div className="ml-auto text-slate-400"><Move className="w-3 h-3 inline mr-1" />Déplacez les éléments avec la souris</div>
+      {/* ZONE DE DESSIN */}
+      <div className="p-6 bg-slate-50 relative">
+        
+        {view === 'coupe' && (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="flex items-center gap-2 mb-4">
+              <Info className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-bold text-slate-700">Coupe de principe - Hauteurs réglementaires</span>
+            </div>
+
+            <div className="relative w-full h-[300px] bg-white border-2 border-slate-200 rounded-xl overflow-hidden shadow-inner flex flex-col">
+              {/* COUCHE DE FUMÉE (HAUT) */}
+              <div 
+                style={{ height: `${(smokeE / H) * 100}%` }}
+                className="w-full bg-slate-700 opacity-90 border-b-4 border-amber-500 relative flex items-center justify-center transition-all duration-500"
+              >
+                <div className="absolute top-2 left-4 text-slate-300 text-xs font-bold font-mono">Plafond : +{H.toFixed(2)}m</div>
+                <div className="text-center">
+                  <span className="text-white font-black tracking-widest uppercase text-sm sm:text-lg opacity-80">Couche de Fumées</span>
+                  <div className="text-amber-400 font-mono font-bold text-xs mt-1">Épaisseur (Ef) = {smokeE.toFixed(2)} m</div>
+                </div>
+                
+                {/* ICONES D'ÉVACUATION */}
+                <div className="absolute top-0 right-1/4 w-12 h-4 bg-rose-500 rounded-b-md flex items-center justify-center shadow-lg">
+                  <ArrowUpFromLine className="w-3 h-3 text-white" />
+                </div>
+              </div>
+
+              {/* ZONE LIBRE (BAS) */}
+              <div 
+                style={{ height: `${(clearH / H) * 100}%` }}
+                className="w-full bg-blue-50/50 relative flex items-center justify-center transition-all duration-500"
+              >
+                <div className="absolute top-2 left-4 text-blue-800 text-xs font-bold font-mono">Retombée : +{clearH.toFixed(2)}m</div>
+                <div className="text-center">
+                  <span className="text-blue-900 font-black tracking-widest uppercase text-sm sm:text-lg opacity-80">Zone Libre (Air Frais)</span>
+                  <div className="text-blue-600 font-mono font-bold text-xs mt-1">Hauteur Libre (H') = {clearH.toFixed(2)} m</div>
+                </div>
+
+                {/* ICONE AMENÉE D'AIR */}
+                <div className="absolute bottom-0 left-1/4 w-4 h-12 bg-emerald-500 rounded-t-md flex items-center justify-center shadow-lg">
+                  <ArrowUpFromLine className="w-3 h-3 text-white" />
+                </div>
+                <div className="absolute bottom-2 left-4 text-slate-500 text-xs font-bold font-mono">Plancher : ±0.00m</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {view === 'plan' && (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            {/* PANNEAU D'ALERTE IT 246 */}
+            <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm transition-colors ${isDistanceValid ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+              <div className="flex items-start gap-3">
+                {isDistanceValid ? <CheckCircle className="w-6 h-6 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-6 h-6 text-rose-600 shrink-0" />}
+                <div>
+                  <h4 className={`font-bold text-sm ${isDistanceValid ? 'text-emerald-900' : 'text-rose-900'}`}>
+                    {isDistanceValid ? 'Implantation Validée IT 246' : 'Non-Conformité IT 246 Détectée !'}
+                  </h4>
+                  <p className={`text-xs mt-0.5 ${isDistanceValid ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {ruleReference}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Distance Actuelle</div>
+                <div className={`text-2xl font-black font-mono ${isDistanceValid ? 'text-emerald-700' : 'text-rose-600'}`}>
+                  {currentDistance.toFixed(1)} m
+                </div>
+              </div>
+            </div>
+
+            {/* DESSIN CAO INTERACTIF */}
+            <div className="text-xs text-slate-500 italic text-center mb-2 flex items-center justify-center gap-2">
+              <Info className="w-4 h-4" /> Cliquez et glissez les grilles pour tester l'implantation.
+            </div>
+
+            <div 
+              className="relative w-full bg-white border-2 border-slate-300 rounded-xl overflow-hidden shadow-inner cursor-crosshair"
+              style={{ aspectRatio: L / W, maxHeight: '500px' }}
+              onMouseMove={handleMouseMove}
+              onMouseUp={() => setDraggingItem(null)}
+              onMouseLeave={() => setDraggingItem(null)}
+            >
+              <svg 
+                ref={svgRef}
+                viewBox={`0 0 ${L} ${W}`} 
+                className="w-full h-full"
+                preserveAspectRatio="none"
+              >
+                {/* GRILLE DE FOND */}
+                <defs>
+                  <pattern id="grid" width="1" height="1" patternUnits="userSpaceOnUse">
+                    <path d="M 1 0 L 0 0 0 1" fill="none" stroke="#e2e8f0" strokeWidth="0.05"/>
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)" />
+
+                {/* LIGNE DE DISTANCE */}
+                <line 
+                  x1={posAmenee.x} y1={posAmenee.y} 
+                  x2={posExtraction.x} y2={posExtraction.y} 
+                  stroke={isDistanceValid ? '#10b981' : '#f43f5e'} 
+                  strokeWidth="0.1" 
+                  strokeDasharray="0.3, 0.3"
+                />
+
+                {/* CERCLE DE COUVERTURE (EXTRACTION) */}
+                {!isCirc && (
+                  <circle 
+                    cx={posExtraction.x} cy={posExtraction.y} 
+                    r={maxDistanceRule} 
+                    fill="none" 
+                    stroke={isDistanceValid ? '#fcd34d' : '#f43f5e'} 
+                    strokeWidth="0.05"
+                    strokeDasharray="0.2, 0.2"
+                  />
+                )}
+
+                {/* ÉLÉMENT : AMENÉE D'AIR */}
+                <g 
+                  transform={`translate(${posAmenee.x}, ${posAmenee.y})`}
+                  onMouseDown={() => setDraggingItem('amenee')}
+                  className="cursor-grab hover:scale-110 transition-transform"
+                >
+                  <rect x="-0.6" y="-0.6" width="1.2" height="1.2" fill="#10b981" rx="0.2" />
+                  <text x="0" y="0.2" fontSize="0.5" fill="white" textAnchor="middle" fontWeight="bold">AA</text>
+                </g>
+
+                {/* ÉLÉMENT : EXTRACTION */}
+                <g 
+                  transform={`translate(${posExtraction.x}, ${posExtraction.y})`}
+                  onMouseDown={() => setDraggingItem('extraction')}
+                  className="cursor-grab hover:scale-110 transition-transform"
+                >
+                  <rect x="-0.6" y="-0.6" width="1.2" height="1.2" fill="#f43f5e" rx="0.2" />
+                  <text x="0" y="0.2" fontSize="0.5" fill="white" textAnchor="middle" fontWeight="bold">EX</text>
+                </g>
+              </svg>
+
+              {/* DIMENSIONS */}
+              <div className="absolute bottom-2 right-4 bg-white/80 px-2 py-1 rounded text-[10px] font-bold text-slate-500 border border-slate-200">
+                Pièce : {L}m x {W}m
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
