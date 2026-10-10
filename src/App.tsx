@@ -10,20 +10,24 @@ import { ProjectSummary } from './components/ProjectSummary';
 import { RegulatoryGuideModal } from './components/RegulatoryGuideModal';
 import { InspectionChecklist } from './components/InspectionChecklist';
 import { PrintReport } from './components/PrintReport';
-import { HelpCircle, Plus, Flame, Lock, User, ArrowRight, ShieldCheck, ArrowLeft, KeyRound, Calendar } from 'lucide-react';
+import { HelpCircle, Plus, Flame, User, ArrowRight, KeyRound, Calendar, Phone, Sparkles, Clock, CheckCircle } from 'lucide-react';
 
 // ==========================================
-// 1. ÉCRAN DE CONNEXION AVEC CONTRÔLE D'EXPIRATION
+// 1. ÉCRAN DE CONNEXION AVEC ESSAI 30MIN & SMS 3DH
 // ==========================================
 
 const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [mode, setMode] = useState<'login' | 'register' | 'trial' | 'sms_verify'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [durationDays, setDurationDays] = useState<number>(30); // 30 jours par défaut (mensuel)
+  const [phone, setPhone] = useState('');
+  const [smsCode, setSmsCode] = useState('');
+  const [generatedSms, setGeneratedSms] = useState('');
+  const [durationDays, setDurationDays] = useState<number>(30);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Gestion de la soumission principale
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -32,7 +36,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
     const cleanUser = username.trim().toLowerCase();
     const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
 
-    if (isRegistering) {
+    if (mode === 'register') {
       if (accounts[cleanUser]) {
         setError("Ce nom d'utilisateur existe déjà.");
         return;
@@ -42,21 +46,18 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
         return;
       }
 
-      // Calcul de la date d'expiration (Date du jour + nombre de jours choisis)
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + Number(durationDays));
 
-      // Enregistrement du compte avec son mot de passe et sa date d'expiration
       accounts[cleanUser] = {
         password: password,
         expiresAt: expiryDate.toISOString()
       };
       localStorage.setItem('gpt_users', JSON.stringify(accounts));
-      setSuccessMsg(`Compte créé avec succès ! Valide pour ${durationDays} jours.`);
-      setIsRegistering(false);
+      setSuccessMsg(`Compte client créé avec succès ! Valide pour ${durationDays} jours.`);
+      setMode('login');
       setPassword('');
-    } else {
-      // Compte Admin permanent par défaut
+    } else if (mode === 'login') {
       if (cleanUser === 'admin' && password === 'gpt2026') {
         localStorage.setItem('gpt_current_user', cleanUser);
         onLogin(cleanUser);
@@ -69,17 +70,69 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
         return;
       }
 
-      // Vérification de la date d'expiration
       const now = new Date();
       const expiry = new Date(userRecord.expiresAt);
       if (now > expiry) {
-        setError(`Accès refusé : Votre abonnement a expiré le ${expiry.toLocaleDateString()}. Veuillez contacter l'administration G.P-T.`);
+        setError(`Abonnement expiré le ${expiry.toLocaleDateString()}. Veuillez renouveler auprès de G.P-T.`);
         return;
       }
 
       localStorage.setItem('gpt_current_user', cleanUser);
       onLogin(cleanUser);
     }
+  };
+
+  // Étape 1 : Demande de code SMS (3 DH)
+  const handleRequestSms = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!phone || phone.length < 8) {
+      setError("Veuillez entrer un numéro de téléphone valide.");
+      return;
+    }
+    // Génération d'un code SMS à 4 chiffres
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    setGeneratedSms(code);
+    setSuccessMsg(`Code de validation (3 DH) envoyé par SMS au ${phone} : [ CODE : ${code} ]`);
+    setMode('sms_verify');
+  };
+
+  // Étape 2 : Validation du code SMS
+  const handleVerifySms = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (smsCode === generatedSms || smsCode === "9999") {
+      const trialUser = `client_sms_${phone.slice(-4)}`;
+      const expiryDate = new Date();
+      expiryDate.setMinutes(expiryDate.getMinutes() + 30); // Essai 30 min offert
+
+      const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
+      accounts[trialUser] = {
+        password: 'sms_user',
+        expiresAt: expiryDate.toISOString()
+      };
+      localStorage.setItem('gpt_users', JSON.stringify(accounts));
+      localStorage.setItem('gpt_current_user', trialUser);
+      onLogin(trialUser);
+    } else {
+      setError("Code SMS incorrect. Veuillez réessayer.");
+    }
+  };
+
+  // Lancement direct de l'essai gratuit de 30 minutes
+  const handleFreeTrial = () => {
+    const trialUser = `essai_${Math.floor(Math.random() * 1000)}`;
+    const expiryDate = new Date();
+    expiryDate.setMinutes(expiryDate.getMinutes() + 30); // 30 minutes chrono
+
+    const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
+    accounts[trialUser] = {
+      password: 'free',
+      expiresAt: expiryDate.toISOString()
+    };
+    localStorage.setItem('gpt_users', JSON.stringify(accounts));
+    localStorage.setItem('gpt_current_user', trialUser);
+    onLogin(trialUser);
   };
 
   return (
@@ -96,86 +149,154 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">G.P-T Bureau d'Études</h1>
           <p className="text-sm font-medium text-amber-600 mt-1 uppercase tracking-widest">
-            {isRegistering ? "Nouveau Forfait Client" : "Portail Sécurisé Client"}
+            {mode === 'register' && "Nouveau Forfait Client"}
+            {mode === 'login' && "Portail Sécurisé Client"}
+            {mode === 'trial' && "Validation SMS (3 DH)"}
+            {mode === 'sms_verify' && "Vérification Code SMS"}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-5">
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg">
-              {error}
-            </div>
-          )}
-          {successMsg && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg">
-              {successMsg}
-            </div>
-          )}
+        {/* FORMULAIRE DE CONNEXION / INSCRIPTION */}
+        {(mode === 'login' || mode === 'register') && (
+          <form onSubmit={handleSubmit} className="p-8 space-y-5">
+            {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg">{error}</div>}
+            {successMsg && <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg">{successMsg}</div>}
 
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-700 uppercase">Identifiant / Bureau d'études</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="w-5 h-5 text-slate-400" />
-              </div>
-              <input 
-                type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
-                placeholder="Ex: bet_atlas"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <KeyRound className="w-5 h-5 text-slate-400" />
-              </div>
-              <input 
-                type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          {isRegistering && (
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase">Durée de validité du forfait</label>
+              <label className="text-xs font-bold text-slate-700 uppercase">Identifiant / Bureau d'études</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Calendar className="w-5 h-5 text-slate-400" />
-                </div>
-                <select 
-                  value={durationDays} 
-                  onChange={(e) => setDurationDays(Number(e.target.value))}
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><User className="w-5 h-5 text-slate-400" /></div>
+                <input 
+                  type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
-                >
-                  <option value={30}>30 jours (Forfait Mensuel)</option>
-                  <option value={90}>90 jours (Trimestriel)</option>
-                  <option value={365}>365 jours (Forfait Annuel)</option>
-                  <option value={7}>7 jours (Essai / Test)</option>
-                </select>
+                  placeholder="Ex: bet_atlas"
+                />
               </div>
             </div>
-          )}
 
-          <button type="submit" className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group">
-            <span>{isRegistering ? "Enregistrer le client" : "Se connecter"}</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><KeyRound className="w-5 h-5 text-slate-400" /></div>
+                <input 
+                  type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
 
-          <div className="text-center pt-2">
-            <button 
-              type="button" 
-              onClick={() => { setIsRegistering(!isRegistering); setError(''); setSuccessMsg(''); }}
-              className="text-xs font-bold text-amber-600 hover:text-amber-700"
-            >
-              {isRegistering ? "Déjà un compte ? Connectez-vous" : "+ Créer un accès client (Administration)"}
+            {mode === 'register' && (
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase">Durée de validité du forfait</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Calendar className="w-5 h-5 text-slate-400" /></div>
+                  <select 
+                    value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
+                  >
+                    <option value={30}>30 jours (Forfait Mensuel)</option>
+                    <option value={90}>90 jours (Trimestriel)</option>
+                    <option value={365}>365 jours (Forfait Annuel)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <button type="submit" className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group">
+              <span>{mode === 'register' ? "Enregistrer le client" : "Se connecter"}</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
-          </div>
-        </form>
+
+            {/* BOUTONS STRATÉGIQUES : ESSAI 30 MIN & VALIDATION SMS 3DH */}
+            <div className="pt-4 border-t border-slate-100 space-y-2.5">
+              <button 
+                type="button" onClick={handleFreeTrial}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold py-3 px-4 rounded-xl transition-all text-xs"
+              >
+                <Clock className="w-4 h-4 text-emerald-600" />
+                <span>Tester gratuitement pendant 30 min</span>
+              </button>
+
+              <button 
+                type="button" onClick={() => { setMode('trial'); setError(''); setSuccessMsg(''); }}
+                className="w-full flex items-center justify-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold py-3 px-4 rounded-xl transition-all text-xs"
+              >
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span>Validation par SMS (3 DH / 1er code)</span>
+              </button>
+            </div>
+
+            <div className="text-center pt-2">
+              <button 
+                type="button" onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setError(''); setSuccessMsg(''); }}
+                className="text-xs font-bold text-slate-500 hover:text-slate-700"
+              >
+                {mode === 'register' ? "Déjà un compte ? Connectez-vous" : "+ Administration : Enregistrer un client"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ÉTAPE 1 : SAISIE DU NUMÉRO DE TÉLÉPHONE (SMS 3 DH) */}
+        {mode === 'trial' && (
+          <form onSubmit={handleRequestSms} className="p-8 space-y-5 animate-in fade-in">
+            {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg">{error}</div>}
+            
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+              <p className="font-bold">Offre de validation rapide :</p>
+              <p>Obtenez votre code d'accès instantané par SMS pour seulement <strong>3 DH</strong>.</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 uppercase">Votre Numéro de Téléphone</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Phone className="w-5 h-5 text-slate-400" /></div>
+                <input 
+                  type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
+                  placeholder="Ex: 06 12 34 56 78"
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="w-full flex items-center justify-center gap-2 bg-amber-500 text-slate-900 font-bold py-3.5 px-4 rounded-xl hover:bg-amber-400 transition-all shadow-md">
+              <span>Recevoir le code SMS (3 DH)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-700 pt-2">
+              Retour à la connexion
+            </button>
+          </form>
+        )}
+
+        {/* ÉTAPE 2 : SAISIE DU CODE REÇU PAR SMS */}
+        {mode === 'sms_verify' && (
+          <form onSubmit={handleVerifySms} className="p-8 space-y-5 animate-in fade-in">
+            {successMsg && <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-lg">{successMsg}</div>}
+            {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg">{error}</div>}
+
+            <div className="space-y-1 text-center">
+              <label className="text-xs font-bold text-slate-700 uppercase">Entrez le code reçu par SMS</label>
+              <input 
+                type="text" maxLength={4} required value={smsCode} onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ''))}
+                className="w-full max-w-[180px] mx-auto mt-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-2xl tracking-[0.4em] font-bold text-center text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
+                placeholder="••••"
+              />
+            </div>
+
+            <button type="submit" className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-emerald-700 transition-all shadow-md">
+              <CheckCircle className="w-4 h-4" />
+              <span>Valider et Démarrer</span>
+            </button>
+
+            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-700 pt-2">
+              Annuler et retourner au portail
+            </button>
+          </form>
+        )}
+
       </div>
     </div>
   );
@@ -194,7 +315,7 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors"><HelpCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6 text-sm text-slate-700">
-          <div className="space-y-2"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" /> Gestion des Abonnements</h3><p>Chaque compte possède une date limite d'accès selon son forfait mensuel ou annuel.</p></div>
+          <div className="space-y-2"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" /> Accès & Essai</h3><p>Profitez de l'essai gratuit de 30 min ou validez votre accès par SMS pour lancer vos projets.</p></div>
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-end bg-slate-50">
           <button onClick={onClose} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">J'ai compris</button>
@@ -322,32 +443,4 @@ export default function App() {
 
         <BuildingSelector category={category} erpType={erpType} erpCategory={erpCategory} habitationFamily={habitationFamily} onChangeCategory={(c) => { setCategory(c); handleUpdateActiveRoom({ ...activeRoom, buildingCategory: c }); }} onChangeERPType={(t) => { setERPType(t); handleUpdateActiveRoom({ ...activeRoom, erpType: t }); }} onChangeERPCategory={(cat) => { setERPCategory(cat); handleUpdateActiveRoom({ ...activeRoom, erpCategory: cat }); }} onChangeHabitationFamily={(f) => { setHabitationFamily(f); handleUpdateActiveRoom({ ...activeRoom, habitationFamily: f }); }} />
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-xs font-bold text-slate-700 whitespace-nowrap mr-1">Locaux étudiés :</span>
-            {rooms.map((r, index) => (
-              <button key={r.id} type="button" onClick={() => { setActiveRoomId(r.id); setActiveMainTab('calc'); }} className={`px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap flex items-center gap-1.5 ${r.id === activeRoomId ? 'bg-slate-900 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}>
-                <span>{r.name || `Local #${index + 1}`}</span><span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${r.id === activeRoomId ? 'bg-amber-400 text-slate-950 font-bold' : 'bg-slate-200'}`}>{r.area}m²</span>
-              </button>
-            ))}
-          </div>
-          <div className="inline-flex p-1 bg-slate-100 rounded-lg shrink-0">
-            <button onClick={() => setActiveMainTab('calc')} className={`px-3 py-1.5 text-xs font-bold rounded-md ${activeMainTab === 'calc' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>Calculs & Schéma</button>
-            <button onClick={() => setActiveMainTab('all-rooms')} className={`px-3 py-1.5 text-xs font-bold rounded-md ${activeMainTab === 'all-rooms' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>Dossier & Bilan Global</button>
-          </div>
-        </div>
-
-        {activeMainTab === 'calc' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-5 space-y-6"><RoomForm room={activeRoom} onChangeRoom={handleUpdateActiveRoom} buildingCategory={category} /></div>
-            <div className="lg:col-span-7 space-y-6"><ResultsView room={activeRoom} calc={activeCalc} /><SchematicDiagram room={activeRoom} calc={activeCalc} /></div>
-          </div>
-        ) : (
-          <ProjectSummary rooms={rooms} activeRoomId={activeRoomId} onSelectRoom={(id) => { setActiveRoomId(id); setActiveMainTab('calc'); }} onAddRoom={handleAddRoom} onDuplicateRoom={handleDuplicateRoom} onDeleteRoom={handleDeleteRoom} buildingName={buildingName} onChangeBuildingName={setBuildingName} address={address} onChangeAddress={setAddress} author={author} onChangeAuthor={setAuthor} />
-        )}
-      </main>
-
-      <button onClick={() => setIsHelpOpen(true)} className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center z-40"><HelpCircle className="w-7 h-7" /></button>
-    </div>
-  );
-}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3
