@@ -13,10 +13,10 @@ import { PrintReport } from './components/PrintReport';
 import { HelpCircle, Plus, Flame, User, ArrowRight, KeyRound, Calendar, Phone, Sparkles, Clock, CheckCircle } from 'lucide-react';
 
 // ==========================================
-// 1. ÉCRAN DE CONNEXION (SANS PRIX ET AVEC CONDITIONS)
+// 1. ÉCRAN DE CONNEXION AVEC ANTI-ABUS ESSAI
 // ==========================================
 const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
-  const [mode, setMode] = useState<'login' | 'register' | 'trial' | 'sms_verify'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'trial' | 'sms_verify' | 'free_trial'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
@@ -33,9 +33,10 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
     const cleanUser = username.trim().toLowerCase();
     const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
 
+    // INSCRIPTION CLASSIQUE (ADMIN)
     if (mode === 'register') {
       if (!termsAccepted) return setError("Veuillez lire et accepter les conditions générales.");
-      if (accounts[cleanUser]) return setError("Ce nom d'utilisateur existe déjà.");
+      if (accounts[cleanUser]) return setError("Cet identifiant existe déjà.");
       if (password.length < 4) return setError("Le mot de passe doit contenir au moins 4 caractères.");
       
       const expiryDate = new Date();
@@ -45,14 +46,33 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
       
       setSuccessMsg(`Compte créé ! Valide pour ${durationDays} jours.`);
       setMode('login'); setPassword(''); setTermsAccepted(false);
-    } else if (mode === 'login') {
+    } 
+    // INSCRIPTION ESSAI GRATUIT (ANTI-ABUS)
+    else if (mode === 'free_trial') {
+      if (!termsAccepted) return setError("Veuillez lire et accepter les conditions générales.");
+      if (!cleanUser.includes('@')) return setError("Veuillez entrer une adresse e-mail valide.");
+      if (accounts[cleanUser]) return setError("Cet e-mail a déjà été utilisé pour un essai ou un forfait.");
+      if (password.length < 4) return setError("Le mot de passe doit contenir au moins 4 caractères.");
+
+      const expiryDate = new Date();
+      expiryDate.setMinutes(expiryDate.getMinutes() + 30); // Expire dans 30 minutes
+      
+      accounts[cleanUser] = { password, expiresAt: expiryDate.toISOString(), isTrial: true };
+      localStorage.setItem('gpt_users', JSON.stringify(accounts));
+      
+      // Connexion automatique après inscription de l'essai
+      localStorage.setItem('gpt_current_user', cleanUser);
+      onLogin(cleanUser);
+    } 
+    // CONNEXION NORMALE
+    else if (mode === 'login') {
       if (cleanUser === 'admin' && password === 'gpt2026') {
         localStorage.setItem('gpt_current_user', cleanUser);
         return onLogin(cleanUser);
       }
       const userRecord = accounts[cleanUser];
       if (!userRecord || userRecord.password !== password) return setError("Identifiant ou mot de passe incorrect.");
-      if (new Date() > new Date(userRecord.expiresAt)) return setError("Abonnement expiré. Veuillez renouveler auprès de G.P-T.");
+      if (new Date() > new Date(userRecord.expiresAt)) return setError("Abonnement ou Essai expiré. Veuillez renouveler auprès de G.P-T.");
       
       localStorage.setItem('gpt_current_user', cleanUser);
       onLogin(cleanUser);
@@ -89,18 +109,6 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
     }
   };
 
-  const handleFreeTrial = () => {
-    const trialUser = `essai_${Math.floor(Math.random() * 1000)}`;
-    const expiryDate = new Date();
-    expiryDate.setMinutes(expiryDate.getMinutes() + 30);
-    
-    const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
-    accounts[trialUser] = { password: 'free', expiresAt: expiryDate.toISOString() };
-    localStorage.setItem('gpt_users', JSON.stringify(accounts));
-    localStorage.setItem('gpt_current_user', trialUser);
-    onLogin(trialUser);
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 selection:bg-amber-500 selection:text-white relative overflow-hidden">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-500">
@@ -112,21 +120,31 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
           <p className="text-sm font-medium text-amber-600 mt-1 uppercase tracking-widest">
             {mode === 'register' && "Nouveau Forfait Client"}
             {mode === 'login' && "Portail Sécurisé Client"}
+            {mode === 'free_trial' && "Essai Gratuit (30 Min)"}
             {mode === 'trial' && "Validation par SMS"}
             {mode === 'sms_verify' && "Vérification Code SMS"}
           </p>
         </div>
 
-        {(mode === 'login' || mode === 'register') && (
+        {(mode === 'login' || mode === 'register' || mode === 'free_trial') && (
           <form onSubmit={handleSubmit} className="p-8 space-y-5">
             {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg">{error}</div>}
             {successMsg && <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg">{successMsg}</div>}
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase">Identifiant / Bureau</label>
+              <label className="text-xs font-bold text-slate-700 uppercase">
+                {mode === 'free_trial' ? "E-mail (Anti-abus)" : "Identifiant / Bureau"}
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><User className="w-5 h-5 text-slate-400" /></div>
-                <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none" placeholder="Ex: bet_atlas" />
+                <input 
+                  type={mode === 'free_trial' ? "email" : "text"} 
+                  required 
+                  value={username} 
+                  onChange={(e) => setUsername(e.target.value)} 
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none" 
+                  placeholder={mode === 'free_trial' ? "votre@email.com" : "Ex: bet_atlas"} 
+                />
               </div>
             </div>
 
@@ -134,49 +152,66 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
               <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><KeyRound className="w-5 h-5 text-slate-400" /></div>
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none" placeholder="••••••••" />
+                <input 
+                  type="password" 
+                  required 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none" 
+                  placeholder="••••••••" 
+                />
               </div>
             </div>
 
             {mode === 'register' && (
-              <>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 uppercase">Durée du forfait</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Calendar className="w-5 h-5 text-slate-400" /></div>
-                    <select value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none">
-                      <option value={30}>30 jours (Mensuel)</option>
-                      <option value={90}>90 jours (Trimestriel)</option>
-                      <option value={365}>365 jours (Annuel)</option>
-                    </select>
-                  </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase">Durée du forfait</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Calendar className="w-5 h-5 text-slate-400" /></div>
+                  <select value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none">
+                    <option value={30}>30 jours (Mensuel)</option>
+                    <option value={90}>90 jours (Trimestriel)</option>
+                    <option value={365}>365 jours (Annuel)</option>
+                  </select>
                 </div>
-                
-                <label className="flex items-start gap-2 cursor-pointer pt-2">
-                  <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 w-4 h-4 accent-amber-500 rounded bg-slate-50 border-slate-300" />
-                  <span className="text-xs font-medium text-slate-600 leading-tight">J'ai lu et j'accepte les <a href="#" className="text-amber-600 hover:underline">conditions générales d'utilisation</a>.</span>
-                </label>
-              </>
+              </div>
+            )}
+            
+            {(mode === 'register' || mode === 'free_trial') && (
+              <label className="flex items-start gap-2 cursor-pointer pt-2">
+                <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 w-4 h-4 accent-amber-500 rounded bg-slate-50 border-slate-300" />
+                <span className="text-xs font-medium text-slate-600 leading-tight">J'ai lu et j'accepte les <a href="#" className="text-amber-600 hover:underline">conditions générales d'utilisation</a>.</span>
+              </label>
             )}
 
             <button type="submit" className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group">
-              <span>{mode === 'register' ? "Enregistrer" : "Se connecter"}</span>
+              <span>
+                {mode === 'register' ? "Enregistrer" : mode === 'free_trial' ? "Démarrer l'essai (30 min)" : "Se connecter"}
+              </span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
 
-            <div className="pt-4 border-t border-slate-100 space-y-2.5">
-              <button type="button" onClick={handleFreeTrial} className="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold py-3 px-4 rounded-xl transition-all text-xs">
-                <Clock className="w-4 h-4 text-emerald-600" /><span>Tester gratuitement 30 min</span>
-              </button>
-              <button type="button" onClick={() => { setMode('trial'); setError(''); setSuccessMsg(''); setTermsAccepted(false); }} className="w-full flex items-center justify-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold py-3 px-4 rounded-xl transition-all text-xs">
-                <Sparkles className="w-4 h-4 text-amber-600" /><span>Validation par SMS</span>
-              </button>
-            </div>
+            {mode === 'login' && (
+              <div className="pt-4 border-t border-slate-100 space-y-2.5">
+                <button type="button" onClick={() => { setMode('free_trial'); setError(''); setSuccessMsg(''); setUsername(''); setPassword(''); setTermsAccepted(false); }} className="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold py-3 px-4 rounded-xl transition-all text-xs">
+                  <Clock className="w-4 h-4 text-emerald-600" /><span>Tester gratuitement 30 min</span>
+                </button>
+                <button type="button" onClick={() => { setMode('trial'); setError(''); setSuccessMsg(''); setTermsAccepted(false); }} className="w-full flex items-center justify-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold py-3 px-4 rounded-xl transition-all text-xs">
+                  <Sparkles className="w-4 h-4 text-amber-600" /><span>Validation par SMS</span>
+                </button>
+              </div>
+            )}
 
             <div className="text-center pt-2">
-              <button type="button" onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setError(''); setSuccessMsg(''); setTermsAccepted(false); }} className="text-xs font-bold text-slate-500 hover:text-slate-700">
-                {mode === 'register' ? "Déjà un compte ? Connectez-vous" : "+ Administration : Enregistrer un client"}
-              </button>
+              {mode !== 'login' ? (
+                <button type="button" onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); setTermsAccepted(false); }} className="text-xs font-bold text-slate-500 hover:text-slate-700">
+                  Retour à la connexion
+                </button>
+              ) : (
+                <button type="button" onClick={() => { setMode('register'); setError(''); setSuccessMsg(''); setTermsAccepted(false); }} className="text-xs font-bold text-slate-500 hover:text-slate-700">
+                  + Administration : Enregistrer un client
+                </button>
+              )}
             </div>
           </form>
         )}
