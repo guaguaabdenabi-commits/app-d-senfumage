@@ -61,7 +61,6 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
     }
   };
 
-  // MISE À JOUR MANUELLE DE LA POSITION (X, Y)
   const updateItemPosition = (id: string, newX: number, newY: number) => {
     if (isNaN(newX) || isNaN(newY)) return;
     const x = Math.max(0.1, Math.min(newX, L - 0.1));
@@ -69,26 +68,27 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
     setItems(items.map(item => item.id === id ? { ...item, x, y } : item));
   };
 
-  // MOTEUR DE DRAG & DROP CORRIGÉ (Matrice SVG Parfaite)
-  const svgRef = useRef<SVGSVGElement>(null);
+  // NOUVEAU MOTEUR DE DRAG & DROP (100% FLUIDE ET SANS SAUTS)
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!draggingId || !svgRef.current) return;
-    const svg = svgRef.current;
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggingId || !wrapperRef.current) return;
     
-    // Création d'un point SVG pour transformer les pixels de l'écran en mètres (IT 246)
-    const CTM = svg.getScreenCTM();
-    if (!CTM) return;
+    // On récupère la taille exacte de la zone de dessin à l'écran
+    const rect = wrapperRef.current.getBoundingClientRect();
     
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const cursorPt = pt.matrixTransform(CTM.inverse());
+    // On calcule le pourcentage de la position de la souris (0 à 1)
+    const percentX = (e.clientX - rect.left) / rect.width;
+    const percentY = (e.clientY - rect.top) / rect.height;
     
-    // Limites des murs
-    const x = Math.max(0.2, Math.min(cursorPt.x, L - 0.2));
-    const y = Math.max(0.2, Math.min(cursorPt.y, W - 0.2));
+    // On multiplie par les dimensions de la pièce pour avoir les mètres
+    let x = percentX * L;
+    let y = percentY * W;
+
+    // On bloque l'icône pour ne pas qu'elle sorte des murs
+    x = Math.max(0.2, Math.min(x, L - 0.2));
+    y = Math.max(0.2, Math.min(y, W - 0.2));
 
     setItems(items.map(item => item.id === draggingId ? { ...item, x, y } : item));
   };
@@ -184,37 +184,29 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
               
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-2"><Plus className="w-3 h-3 inline pb-0.5"/> Insérer</span>
-                <button onClick={() => addItem('aa')} className="px-2 py-1 bg-white border border-slate-300 hover:border-emerald-500 hover:text-emerald-700 text-slate-700 text-[10px] font-bold rounded shadow-sm transition-colors">AA</button>
-                <button onClick={() => addItem('ex')} className="px-2 py-1 bg-white border border-slate-300 hover:border-rose-500 hover:text-rose-700 text-slate-700 text-[10px] font-bold rounded shadow-sm transition-colors">EX</button>
-                <button onClick={() => addItem('porte')} className="px-2 py-1 bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-700 text-slate-700 text-[10px] font-bold rounded shadow-sm transition-colors">Porte</button>
+                <button onClick={() => addItem('aa')} className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded transition-colors">AA</button>
+                <button onClick={() => addItem('ex')} className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[10px] font-bold rounded transition-colors">EX</button>
+                <button onClick={() => addItem('porte')} className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-[10px] font-bold rounded transition-colors">Porte</button>
               </div>
 
-              {/* PANNEAU DE COORDONNÉES EXACTES (LE VRAI OUTIL D'INGÉNIEUR) */}
+              {/* PANNEAU DE COORDONNÉES EXACTES */}
               <div className="flex-1 flex items-center justify-center border-x border-slate-100 px-4 min-w-[250px]">
                 {selectedItem ? (
                   <div className="flex items-center gap-3 bg-amber-50 px-3 py-1 rounded border border-amber-200 animate-in fade-in">
                     <span className="flex items-center gap-1 text-[10px] font-bold text-amber-800 uppercase"><LocateFixed className="w-3 h-3" /> Position</span>
                     <div className="flex items-center gap-1">
                       <label className="text-[10px] font-bold text-slate-500">X:</label>
-                      <input 
-                        type="number" step="0.1" value={selectedItem.x.toFixed(1)} 
-                        onChange={(e) => updateItemPosition(selectedItem.id, parseFloat(e.target.value), selectedItem.y)}
-                        className="w-14 h-6 text-xs text-center font-mono font-bold bg-white border border-slate-300 rounded focus:border-amber-500 outline-none"
-                      />
+                      <input type="number" step="0.1" value={selectedItem.x.toFixed(1)} onChange={(e) => updateItemPosition(selectedItem.id, parseFloat(e.target.value), selectedItem.y)} className="w-14 h-6 text-xs text-center font-mono font-bold bg-white border border-slate-300 rounded focus:border-amber-500 outline-none" />
                       <span className="text-[10px] text-slate-400">m</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <label className="text-[10px] font-bold text-slate-500">Y:</label>
-                      <input 
-                        type="number" step="0.1" value={selectedItem.y.toFixed(1)} 
-                        onChange={(e) => updateItemPosition(selectedItem.id, selectedItem.x, parseFloat(e.target.value))}
-                        className="w-14 h-6 text-xs text-center font-mono font-bold bg-white border border-slate-300 rounded focus:border-amber-500 outline-none"
-                      />
+                      <input type="number" step="0.1" value={selectedItem.y.toFixed(1)} onChange={(e) => updateItemPosition(selectedItem.id, selectedItem.x, parseFloat(e.target.value))} className="w-14 h-6 text-xs text-center font-mono font-bold bg-white border border-slate-300 rounded focus:border-amber-500 outline-none" />
                       <span className="text-[10px] text-slate-400">m</span>
                     </div>
                   </div>
                 ) : (
-                  <span className="text-[10px] text-slate-400 flex items-center gap-1"><MousePointer2 className="w-3 h-3" /> Cliquez sur un élément pour régler ses coordonnées exactes</span>
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1"><MousePointer2 className="w-3 h-3" /> Cliquez sur un élément pour régler ses coordonnées ou le supprimer</span>
                 )}
               </div>
 
@@ -225,16 +217,14 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
                     Rectiligne
                   </label>
                 )}
-                <button 
-                  onClick={deleteSelected} disabled={!selectedId}
-                  className={`flex items-center gap-1 px-2 py-1 border text-[10px] font-bold rounded transition-colors ${selectedId ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200' : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'}`}
-                >
-                  <Trash2 className="w-3 h-3" /> Supprimer
-                 </button>
+                {/* BOUTON SUPPRIMER BIEN VISIBLE */}
+                <button onClick={deleteSelected} disabled={!selectedId} className={`flex items-center gap-1 px-3 py-1.5 border text-xs font-bold rounded transition-colors ${selectedId ? 'bg-rose-600 text-white hover:bg-rose-700 border-rose-700 shadow-md' : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'}`} >
+                  <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                </button>
               </div>
             </div>
 
-            {/* STATUS IT 246 (DISCRET ET EFFICACE) */}
+            {/* STATUS IT 246 */}
             <div className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 border-b ${isValid ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
               {isValid ? (
                 <><CheckCircle className="w-3.5 h-3.5" /> Conformité IT 246 Validée</>
@@ -243,22 +233,25 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
               )}
             </div>
 
-            {/* DESSIN CAO INTERACTIF */}
-            <div className="relative w-full bg-[#f8fafc] overflow-hidden flex-1 min-h-[450px]">
-              <div className="absolute inset-4 flex items-center justify-center">
-                
-                {/* L'ÉVÉNEMENT DE SOURIS EST MAINTENANT SUR LE SVG POUR UNE PRÉCISION ABSOLUE */}
-                <svg 
-                  ref={svgRef} 
-                  viewBox={`0 0 ${L} ${W}`} 
-                  className="w-full h-full max-h-full drop-shadow-sm cursor-crosshair" 
-                  preserveAspectRatio="xMidYMid meet" 
-                  style={{ overflow: 'visible' }}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={() => setDraggingId(null)}
-                  onMouseLeave={() => setDraggingId(null)}
-                  onClick={(e) => { if (e.target === svgRef.current) setSelectedId(null); }}
-                >
+            {/* DESSIN CAO INTERACTIF (NOUVELLE STRUCTURE INCASSABLE) */}
+            <div className="flex-1 bg-[#f8fafc] p-4 flex items-center justify-center min-h-[400px]"
+                 onMouseUp={() => setDraggingId(null)}
+                 onMouseLeave={() => setDraggingId(null)}>
+                 
+              {/* Le "wrapperRef" garde toujours les bonnes proportions L x W */}
+              <div ref={wrapperRef} 
+                   className="relative bg-white shadow-md border-2 border-slate-300"
+                   style={{ 
+                     width: '100%', 
+                     maxWidth: '800px', 
+                     aspectRatio: `${L} / ${W}`, // Force la forme exacte de la pièce
+                     cursor: draggingId ? 'grabbing' : 'crosshair'
+                   }}
+                   onMouseMove={handleMouseMove}
+                   onClick={() => setSelectedId(null)}>
+                   
+                {/* Le SVG remplit exactement 100% de la boîte, sans déformation */}
+                <svg viewBox={`0 0 ${L} ${W}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                   
                   {/* FOND DU LOCAL / QUADRILLAGE */}
                   <defs>
@@ -266,17 +259,16 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
                       <path d="M 1 0 L 0 0 0 1" fill="none" stroke="#cbd5e1" strokeWidth="0.05" strokeDasharray="0.1, 0.1"/>
                     </pattern>
                   </defs>
-                  {/* Mur extérieur du local */}
-                  <rect width={L} height={W} fill="url(#grid)" stroke="#64748b" strokeWidth="0.1" />
+                  <rect width={L} height={W} fill="url(#grid)" />
 
-                  {/* RAYONS D'ACTION (Zone jaune discrète) */}
+                  {/* RAYONS D'ACTION (Zone jaune) */}
                   {!isCirc && extractions.map(ex => (
                     <g key={`radius-${ex.id}`} className="pointer-events-none">
                       <circle cx={ex.x} cy={ex.y} r={maxDistLocal} fill="rgba(252, 211, 77, 0.08)" stroke="#fbbf24" strokeWidth="0.04" strokeDasharray="0.2, 0.2"/>
                     </g>
                   ))}
 
-                  {/* LIGNES DE COTES DYNAMIQUES (Style plan d'archi) */}
+                  {/* LIGNES DE COTES DYNAMIQUES */}
                   {cotations.map((cote, index) => {
                     const midX = (cote.x1 + cote.x2) / 2;
                     const midY = (cote.y1 + cote.y2) / 2;
@@ -293,7 +285,7 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
                     );
                   })}
 
-                  {/* ÉLÉMENTS DU PLAN */}
+                  {/* ÉLÉMENTS DU PLAN (Portes, AA, EX) */}
                   {items.map(item => {
                     const isSelected = item.id === selectedId;
                     
@@ -302,9 +294,9 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
                         key={item.id} 
                         transform={`translate(${item.x}, ${item.y})`} 
                         onMouseDown={(e) => { e.stopPropagation(); setDraggingId(item.id); setSelectedId(item.id); }}
-                        className={`transition-transform duration-75 ease-out ${draggingId === item.id ? 'cursor-grabbing scale-110' : 'cursor-grab hover:scale-110'}`}
+                        className="transition-transform duration-75 ease-out hover:scale-110"
                       >
-                        {/* Halo de sélection */}
+                        {/* Halo de sélection clair */}
                         {isSelected && <circle cx="0" cy="0" r="0.8" fill="rgba(14, 165, 233, 0.1)" stroke="#0ea5e9" strokeWidth="0.06" strokeDasharray="0.1, 0.1" />}
                         
                         {item.type === 'porte' && (
@@ -346,7 +338,7 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
                 )}
               </div>
               <div className="flex items-center gap-1 text-slate-400">
-                <Move className="w-3 h-3" /> Maintien clic pour glisser, ou saisie manuelle.
+                <Move className="w-3 h-3" /> Maintien clic pour glisser, ou saisie manuelle en haut.
               </div>
             </div>
 
