@@ -13,7 +13,7 @@ import { PrintReport } from './components/PrintReport';
 import { HelpCircle, Plus, Flame, User, ArrowRight, KeyRound, Calendar, Phone, Sparkles, Clock, CheckCircle } from 'lucide-react';
 
 // ==========================================
-// 1. ÉCRAN DE CONNEXION AVEC ESSAI 30MIN & SMS 3DH
+// 1. ÉCRAN DE CONNEXION (SANS PRIX ET AVEC CONDITIONS)
 // ==========================================
 const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
   const [mode, setMode] = useState<'login' | 'register' | 'trial' | 'sms_verify'>('login');
@@ -23,6 +23,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
   const [smsCode, setSmsCode] = useState('');
   const [generatedSms, setGeneratedSms] = useState('');
   const [durationDays, setDurationDays] = useState<number>(30);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -33,14 +34,17 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
     const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
 
     if (mode === 'register') {
+      if (!termsAccepted) return setError("Veuillez lire et accepter les conditions générales.");
       if (accounts[cleanUser]) return setError("Ce nom d'utilisateur existe déjà.");
       if (password.length < 4) return setError("Le mot de passe doit contenir au moins 4 caractères.");
+      
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + Number(durationDays));
       accounts[cleanUser] = { password, expiresAt: expiryDate.toISOString() };
       localStorage.setItem('gpt_users', JSON.stringify(accounts));
+      
       setSuccessMsg(`Compte créé ! Valide pour ${durationDays} jours.`);
-      setMode('login'); setPassword('');
+      setMode('login'); setPassword(''); setTermsAccepted(false);
     } else if (mode === 'login') {
       if (cleanUser === 'admin' && password === 'gpt2026') {
         localStorage.setItem('gpt_current_user', cleanUser);
@@ -49,6 +53,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
       const userRecord = accounts[cleanUser];
       if (!userRecord || userRecord.password !== password) return setError("Identifiant ou mot de passe incorrect.");
       if (new Date() > new Date(userRecord.expiresAt)) return setError("Abonnement expiré. Veuillez renouveler auprès de G.P-T.");
+      
       localStorage.setItem('gpt_current_user', cleanUser);
       onLogin(cleanUser);
     }
@@ -57,10 +62,12 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
   const handleRequestSms = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!termsAccepted) return setError("Veuillez lire et accepter les conditions générales.");
     if (!phone || phone.length < 8) return setError("Numéro invalide.");
+    
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     setGeneratedSms(code);
-    setSuccessMsg(`Code (3 DH) envoyé au ${phone} : [ CODE : ${code} ]`);
+    setSuccessMsg(`Code de validation envoyé au ${phone} : [ CODE : ${code} ]`);
     setMode('sms_verify');
   };
 
@@ -71,6 +78,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
       const trialUser = `client_sms_${phone.slice(-4)}`;
       const expiryDate = new Date();
       expiryDate.setMinutes(expiryDate.getMinutes() + 30);
+      
       const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
       accounts[trialUser] = { password: 'sms_user', expiresAt: expiryDate.toISOString() };
       localStorage.setItem('gpt_users', JSON.stringify(accounts));
@@ -85,6 +93,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
     const trialUser = `essai_${Math.floor(Math.random() * 1000)}`;
     const expiryDate = new Date();
     expiryDate.setMinutes(expiryDate.getMinutes() + 30);
+    
     const accounts = JSON.parse(localStorage.getItem('gpt_users') || '{}');
     accounts[trialUser] = { password: 'free', expiresAt: expiryDate.toISOString() };
     localStorage.setItem('gpt_users', JSON.stringify(accounts));
@@ -103,7 +112,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
           <p className="text-sm font-medium text-amber-600 mt-1 uppercase tracking-widest">
             {mode === 'register' && "Nouveau Forfait Client"}
             {mode === 'login' && "Portail Sécurisé Client"}
-            {mode === 'trial' && "Validation SMS (3 DH)"}
+            {mode === 'trial' && "Validation par SMS"}
             {mode === 'sms_verify' && "Vérification Code SMS"}
           </p>
         </div>
@@ -130,17 +139,24 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
             </div>
 
             {mode === 'register' && (
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 uppercase">Durée du forfait</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Calendar className="w-5 h-5 text-slate-400" /></div>
-                  <select value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none">
-                    <option value={30}>30 jours (Mensuel)</option>
-                    <option value={90}>90 jours (Trimestriel)</option>
-                    <option value={365}>365 jours (Annuel)</option>
-                  </select>
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 uppercase">Durée du forfait</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Calendar className="w-5 h-5 text-slate-400" /></div>
+                    <select value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none">
+                      <option value={30}>30 jours (Mensuel)</option>
+                      <option value={90}>90 jours (Trimestriel)</option>
+                      <option value={365}>365 jours (Annuel)</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
+                
+                <label className="flex items-start gap-2 cursor-pointer pt-2">
+                  <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 w-4 h-4 accent-amber-500 rounded bg-slate-50 border-slate-300" />
+                  <span className="text-xs font-medium text-slate-600 leading-tight">J'ai lu et j'accepte les <a href="#" className="text-amber-600 hover:underline">conditions générales d'utilisation</a>.</span>
+                </label>
+              </>
             )}
 
             <button type="submit" className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group">
@@ -152,13 +168,13 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
               <button type="button" onClick={handleFreeTrial} className="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold py-3 px-4 rounded-xl transition-all text-xs">
                 <Clock className="w-4 h-4 text-emerald-600" /><span>Tester gratuitement 30 min</span>
               </button>
-              <button type="button" onClick={() => { setMode('trial'); setError(''); setSuccessMsg(''); }} className="w-full flex items-center justify-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold py-3 px-4 rounded-xl transition-all text-xs">
-                <Sparkles className="w-4 h-4 text-amber-600" /><span>Validation par SMS (3 DH)</span>
+              <button type="button" onClick={() => { setMode('trial'); setError(''); setSuccessMsg(''); setTermsAccepted(false); }} className="w-full flex items-center justify-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold py-3 px-4 rounded-xl transition-all text-xs">
+                <Sparkles className="w-4 h-4 text-amber-600" /><span>Validation par SMS</span>
               </button>
             </div>
 
             <div className="text-center pt-2">
-              <button type="button" onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setError(''); setSuccessMsg(''); }} className="text-xs font-bold text-slate-500 hover:text-slate-700">
+              <button type="button" onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setError(''); setSuccessMsg(''); setTermsAccepted(false); }} className="text-xs font-bold text-slate-500 hover:text-slate-700">
                 {mode === 'register' ? "Déjà un compte ? Connectez-vous" : "+ Administration : Enregistrer un client"}
               </button>
             </div>
@@ -168,10 +184,12 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
         {mode === 'trial' && (
           <form onSubmit={handleRequestSms} className="p-8 space-y-5 animate-in fade-in">
             {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-lg">{error}</div>}
+            
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
               <p className="font-bold">Offre de validation rapide :</p>
-              <p>Obtenez votre code d'accès par SMS pour <strong>3 DH</strong>.</p>
+              <p>Obtenez votre code d'accès par SMS pour débloquer votre espace.</p>
             </div>
+
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 uppercase">Numéro de Téléphone</label>
               <div className="relative">
@@ -179,10 +197,16 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
                 <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none" placeholder="Ex: 06 12 34 56 78" />
               </div>
             </div>
+            
+            <label className="flex items-start gap-2 cursor-pointer pt-2">
+              <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 w-4 h-4 accent-amber-500 rounded bg-slate-50 border-slate-300" />
+              <span className="text-xs font-medium text-slate-600 leading-tight">J'ai lu et j'accepte les <a href="#" className="text-amber-600 hover:underline">conditions générales d'utilisation</a>.</span>
+            </label>
+
             <button type="submit" className="w-full flex items-center justify-center gap-2 bg-amber-500 text-slate-900 font-bold py-3.5 px-4 rounded-xl hover:bg-amber-400 transition-all shadow-md">
-              <span>Recevoir le code (3 DH)</span><ArrowRight className="w-4 h-4" />
+              <span>Recevoir le code SMS</span><ArrowRight className="w-4 h-4" />
             </button>
-            <button type="button" onClick={() => setMode('login')} className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-700 pt-2">Retour à la connexion</button>
+            <button type="button" onClick={() => { setMode('login'); setTermsAccepted(false); }} className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-700 pt-2">Retour à la connexion</button>
           </form>
         )}
 
