@@ -13,7 +13,7 @@ import { PrintReport } from './components/PrintReport';
 import { HelpCircle, Plus, Flame, User, ArrowRight, KeyRound, Calendar, Phone, Sparkles, Clock, CheckCircle } from 'lucide-react';
 
 // ==========================================
-// 1. ÉCRAN DE CONNEXION AVEC ANTI-ABUS ESSAI
+// 1. ÉCRAN DE CONNEXION (MAGIC LINK POUR ESSAI)
 // ==========================================
 const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
   const [mode, setMode] = useState<'login' | 'register' | 'trial' | 'sms_verify' | 'free_trial'>('login');
@@ -47,22 +47,26 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
       setSuccessMsg(`Compte créé ! Valide pour ${durationDays} jours.`);
       setMode('login'); setPassword(''); setTermsAccepted(false);
     } 
-    // INSCRIPTION ESSAI GRATUIT (ANTI-ABUS)
+    // INSCRIPTION ESSAI GRATUIT (MAGIC LINK - SANS MOT DE PASSE)
     else if (mode === 'free_trial') {
       if (!termsAccepted) return setError("Veuillez lire et accepter les conditions générales.");
       if (!cleanUser.includes('@')) return setError("Veuillez entrer une adresse e-mail valide.");
       if (accounts[cleanUser]) return setError("Cet e-mail a déjà été utilisé pour un essai ou un forfait.");
-      if (password.length < 4) return setError("Le mot de passe doit contenir au moins 4 caractères.");
 
       const expiryDate = new Date();
       expiryDate.setMinutes(expiryDate.getMinutes() + 30); // Expire dans 30 minutes
       
-      accounts[cleanUser] = { password, expiresAt: expiryDate.toISOString(), isTrial: true };
+      // On sauvegarde l'e-mail avec un faux mot de passe caché
+      accounts[cleanUser] = { password: 'magic_link_token', expiresAt: expiryDate.toISOString(), isTrial: true };
       localStorage.setItem('gpt_users', JSON.stringify(accounts));
       
-      // Connexion automatique après inscription de l'essai
-      localStorage.setItem('gpt_current_user', cleanUser);
-      onLogin(cleanUser);
+      setSuccessMsg("Lien d'accès envoyé à votre e-mail ! (Simulation : Ouverture automatique...)");
+      
+      // Simulation du clic sur le lien magique après 2 secondes
+      setTimeout(() => {
+        localStorage.setItem('gpt_current_user', cleanUser);
+        onLogin(cleanUser);
+      }, 2500);
     } 
     // CONNEXION NORMALE
     else if (mode === 'login') {
@@ -133,7 +137,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
 
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 uppercase">
-                {mode === 'free_trial' ? "E-mail (Anti-abus)" : "Identifiant / Bureau"}
+                {mode === 'free_trial' ? "E-mail (Pour recevoir le lien)" : "Identifiant / Bureau"}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><User className="w-5 h-5 text-slate-400" /></div>
@@ -148,20 +152,23 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><KeyRound className="w-5 h-5 text-slate-400" /></div>
-                <input 
-                  type="password" 
-                  required 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none" 
-                  placeholder="••••••••" 
-                />
+            {/* LE MOT DE PASSE EST MASQUÉ POUR L'ESSAI GRATUIT */}
+            {mode !== 'free_trial' && (
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><KeyRound className="w-5 h-5 text-slate-400" /></div>
+                  <input 
+                    type="password" 
+                    required 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none" 
+                    placeholder="••••••••" 
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {mode === 'register' && (
               <div className="space-y-1">
@@ -186,7 +193,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
 
             <button type="submit" className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group">
               <span>
-                {mode === 'register' ? "Enregistrer" : mode === 'free_trial' ? "Démarrer l'essai (30 min)" : "Se connecter"}
+                {mode === 'register' ? "Enregistrer" : mode === 'free_trial' ? "Recevoir mon lien d'essai" : "Se connecter"}
               </span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
