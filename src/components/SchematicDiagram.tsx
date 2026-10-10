@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, Info, Wind, Plus, Trash2, ArrowUpFromLine } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, Wind, Plus, Trash2 } from 'lucide-react';
 import { RoomInput, CalculationResult } from '../types/desenfumage';
 
 interface Props {
@@ -127,9 +127,9 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
   const isValid = ruleErrors.length === 0;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col h-full">
       
-      {/* L'ANCIEN HEADER NOIR (FORT ET LISIBLE) */}
+      {/* HEADER NOIR (FORT ET LISIBLE) */}
       <div className="bg-slate-900 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-white font-bold text-lg flex items-center gap-2">
@@ -149,9 +149,9 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
         </div>
       </div>
 
-      <div className="p-6 bg-slate-50 relative">
+      <div className="p-6 bg-slate-50 relative flex-1 flex flex-col">
         {view === 'coupe' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="space-y-4 animate-in fade-in duration-300 w-full">
             <div className="flex items-center gap-2 mb-4"><Info className="w-4 h-4 text-blue-600" /><span className="text-sm font-bold text-slate-700">Coupe de principe - Hauteurs réglementaires</span></div>
             <div className="relative w-full h-[300px] bg-white border-2 border-slate-200 rounded-xl overflow-hidden shadow-inner flex flex-col">
               <div style={{ height: `${(smokeE / H) * 100}%` }} className="w-full bg-slate-700 opacity-90 border-b-4 border-amber-500 relative flex items-center justify-center transition-all duration-500">
@@ -174,9 +174,9 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
         )}
 
         {view === 'plan' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="flex flex-col h-full animate-in fade-in duration-300 gap-4">
             
-            {/* L'ANCIEN PANNEAU D'ALERTE (GRAND ET CLAIR) */}
+            {/* PANNEAU D'ALERTE (GRAND ET CLAIR) */}
             <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm transition-colors ${isValid ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
               <div className="flex items-start gap-3">
                 {isValid ? <CheckCircle className="w-6 h-6 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-6 h-6 text-rose-600 shrink-0" />}
@@ -195,7 +195,7 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
               </div>
             </div>
 
-            {/* L'ANCIENNE BARRE D'OUTILS (SIMPLE ET FORTE) */}
+            {/* BARRE D'OUTILS (SIMPLE ET FORTE) */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-slate-700 mr-2">Ajouter :</span>
@@ -224,99 +224,102 @@ export const SchematicDiagram: React.FC<Props> = ({ room, calc }) => {
               </div>
             </div>
 
-            {/* DESSIN CAO INTERACTIF (AVEC GLISSER-DÉPOSER FLUIDE) */}
-            <div 
-              ref={wrapperRef}
-              className="relative w-full bg-white border-2 border-slate-300 rounded-xl overflow-hidden shadow-inner flex items-center justify-center cursor-crosshair"
-              style={{ aspectRatio: `${L} / ${W}`, maxHeight: '600px' }}
-              onMouseMove={handleMouseMove}
-              onMouseUp={() => setDraggingId(null)}
-              onMouseLeave={() => setDraggingId(null)}
-              onClick={(e) => { if (e.target === wrapperRef.current || (e.target as any).tagName === 'svg' || (e.target as any).tagName === 'rect') setSelectedId(null); }}
-            >
-              <svg viewBox={`0 0 ${L} ${W}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-                
-                {/* QUADRILLAGE */}
-                <defs>
-                  <pattern id="grid" width="1" height="1" patternUnits="userSpaceOnUse">
-                    <path d="M 1 0 L 0 0 0 1" fill="none" stroke="#e2e8f0" strokeWidth="0.05"/>
-                  </pattern>
-                </defs>
-                <rect width={L} height={W} fill="url(#grid)" />
-
-                {/* RAYONS D'ACTION (Zone jaune pour Locaux) */}
-                {!isCirc && extractions.map(ex => (
-                  <g key={`radius-${ex.id}`} className="pointer-events-none">
-                    <circle cx={ex.x} cy={ex.y} r={maxDistLocal} fill="rgba(252, 211, 77, 0.15)" stroke="#fbbf24" strokeWidth="0.05" strokeDasharray="0.2, 0.2"/>
-                  </g>
-                ))}
-
-                {/* LIGNES DE COTES IT 246 */}
-                {cotations.map((cote, index) => {
-                  const midX = (cote.x1 + cote.x2) / 2;
-                  const midY = (cote.y1 + cote.y2) / 2;
-                  const color = cote.isValid ? '#10b981' : '#f43f5e';
+            {/* DESSIN CAO INTERACTIF COMPLETEMENT VIDE ET LIBRE */}
+            <div className="w-full flex-1 flex flex-col min-h-[500px]">
+              <div 
+                ref={wrapperRef}
+                className="relative w-full bg-white border-2 border-slate-300 rounded-t-xl overflow-hidden shadow-inner flex items-center justify-center cursor-crosshair flex-1"
+                style={{ aspectRatio: `${L} / ${W}` }}
+                onMouseMove={handleMouseMove}
+                onMouseUp={() => setDraggingId(null)}
+                onMouseLeave={() => setDraggingId(null)}
+                onClick={(e) => { if (e.target === wrapperRef.current || (e.target as any).tagName === 'svg' || (e.target as any).tagName === 'rect') setSelectedId(null); }}
+              >
+                <svg viewBox={`0 0 ${L} ${W}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                   
-                  return (
-                    <g key={`cote-${index}`} className="pointer-events-none">
-                      <line x1={cote.x1} y1={cote.y1} x2={cote.x2} y2={cote.y2} stroke={color} strokeWidth="0.06" strokeDasharray="0.2, 0.2" />
-                      <rect x={midX - 0.7} y={midY - 0.3} width="1.4" height="0.6" fill="white" rx="0.1" opacity="0.9" />
-                      <text x={midX} y={midY + 0.15} fontSize="0.35" fill={color} textAnchor="middle" fontWeight="bold">
-                        {cote.dist.toFixed(1)} m
-                      </text>
-                    </g>
-                  );
-                })}
+                  {/* QUADRILLAGE */}
+                  <defs>
+                    <pattern id="grid" width="1" height="1" patternUnits="userSpaceOnUse">
+                      <path d="M 1 0 L 0 0 0 1" fill="none" stroke="#e2e8f0" strokeWidth="0.05"/>
+                    </pattern>
+                  </defs>
+                  <rect width={L} height={W} fill="url(#grid)" />
 
-                {/* ÉLÉMENTS DU PLAN */}
-                {items.map(item => {
-                  const isSelected = item.id === selectedId;
-                  
-                  return (
-                    <g 
-                      key={item.id} 
-                      transform={`translate(${item.x}, ${item.y})`} 
-                      onMouseDown={(e) => { e.stopPropagation(); setDraggingId(item.id); setSelectedId(item.id); }}
-                      className={`transition-transform duration-75 ${draggingId === item.id ? 'cursor-grabbing scale-110' : 'cursor-grab hover:scale-110'}`}
-                    >
-                      {/* Halo de sélection (Très clair) */}
-                      {isSelected && <circle cx="0" cy="0" r="1.2" fill="none" stroke="#3b82f6" strokeWidth="0.1" strokeDasharray="0.2, 0.2" className="animate-[spin_4s_linear_infinite]" />}
-                      
-                      {item.type === 'porte' && (
-                        <>
-                          <rect x="-0.8" y="-0.2" width="1.6" height="0.4" fill={isSelected ? '#2563eb' : '#3b82f6'} rx="0.1" />
-                          <text x="0" y="0.1" fontSize="0.25" fill="white" textAnchor="middle" fontWeight="bold">PORTE</text>
-                        </>
-                      )}
-                      
-                      {item.type === 'aa' && (
-                        <>
-                          <rect x="-0.6" y="-0.6" width="1.2" height="1.2" fill={isSelected ? '#059669' : '#10b981'} rx="0.2" />
-                          <text x="0" y="0.2" fontSize="0.5" fill="white" textAnchor="middle" fontWeight="bold">AA</text>
-                        </>
-                      )}
-                      
-                      {item.type === 'ex' && (
-                        <>
-                          <rect x="-0.6" y="-0.6" width="1.2" height="1.2" fill={isSelected ? '#e11d48' : '#f43f5e'} rx="0.2" />
-                          <text x="0" y="0.2" fontSize="0.5" fill="white" textAnchor="middle" fontWeight="bold">EX</text>
-                        </>
-                      )}
+                  {/* RAYONS D'ACTION (Zone jaune pour Locaux) */}
+                  {!isCirc && extractions.map(ex => (
+                    <g key={`radius-${ex.id}`} className="pointer-events-none">
+                      <circle cx={ex.x} cy={ex.y} r={maxDistLocal} fill="rgba(252, 211, 77, 0.15)" stroke="#fbbf24" strokeWidth="0.05" strokeDasharray="0.2, 0.2"/>
                     </g>
-                  );
-                })}
-              </svg>
+                  ))}
 
-              {/* LÉGENDE DES DIMENSIONS EN BAS À DROITE */}
-              <div className="absolute bottom-3 right-4 bg-white/95 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 border border-slate-300 shadow-md pointer-events-none">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                  <span>Long. : {L}m</span>
-                  <span className="ml-4">Larg. : {W}m</span>
-                </div>
-                {!isCirc && (
-                  <div className="text-[11px] text-amber-600">
-                    Rayon d'action EX : {maxDistLocal.toFixed(1)}m
-                  </div>
+                  {/* LIGNES DE COTES IT 246 */}
+                  {cotations.map((cote, index) => {
+                    const midX = (cote.x1 + cote.x2) / 2;
+                    const midY = (cote.y1 + cote.y2) / 2;
+                    const color = cote.isValid ? '#10b981' : '#f43f5e';
+                    
+                    return (
+                      <g key={`cote-${index}`} className="pointer-events-none">
+                        <line x1={cote.x1} y1={cote.y1} x2={cote.x2} y2={cote.y2} stroke={color} strokeWidth="0.06" strokeDasharray="0.2, 0.2" />
+                        <rect x={midX - 0.7} y={midY - 0.3} width="1.4" height="0.6" fill="white" rx="0.1" opacity="0.9" />
+                        <text x={midX} y={midY + 0.15} fontSize="0.35" fill={color} textAnchor="middle" fontWeight="bold">
+                          {cote.dist.toFixed(1)} m
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* ÉLÉMENTS DU PLAN */}
+                  {items.map(item => {
+                    const isSelected = item.id === selectedId;
+                    
+                    return (
+                      <g 
+                        key={item.id} 
+                        transform={`translate(${item.x}, ${item.y})`} 
+                        onMouseDown={(e) => { e.stopPropagation(); setDraggingId(item.id); setSelectedId(item.id); }}
+                        className={`transition-transform duration-75 ${draggingId === item.id ? 'cursor-grabbing scale-110' : 'cursor-grab hover:scale-110'}`}
+                      >
+                        {/* Halo de sélection (Très clair) */}
+                        {isSelected && <circle cx="0" cy="0" r="1.2" fill="none" stroke="#3b82f6" strokeWidth="0.1" strokeDasharray="0.2, 0.2" className="animate-[spin_4s_linear_infinite]" />}
+                        
+                        {item.type === 'porte' && (
+                          <>
+                            <rect x="-0.8" y="-0.2" width="1.6" height="0.4" fill={isSelected ? '#2563eb' : '#3b82f6'} rx="0.1" />
+                            <text x="0" y="0.1" fontSize="0.25" fill="white" textAnchor="middle" fontWeight="bold">PORTE</text>
+                          </>
+                        )}
+                        
+                        {item.type === 'aa' && (
+                          <>
+                            <rect x="-0.6" y="-0.6" width="1.2" height="1.2" fill={isSelected ? '#059669' : '#10b981'} rx="0.2" />
+                            <text x="0" y="0.2" fontSize="0.5" fill="white" textAnchor="middle" fontWeight="bold">AA</text>
+                          </>
+                        )}
+                        
+                        {item.type === 'ex' && (
+                          <>
+                            <rect x="-0.6" y="-0.6" width="1.2" height="1.2" fill={isSelected ? '#e11d48' : '#f43f5e'} rx="0.2" />
+                            <text x="0" y="0.2" fontSize="0.5" fill="white" textAnchor="middle" fontWeight="bold">EX</text>
+                          </>
+                        )}
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+
+              {/* LÉGENDE DÉPORTÉE EN DESSOUS (HORS DU DESSIN) */}
+              <div className="bg-slate-100 border-2 border-t-0 border-slate-300 rounded-b-xl px-4 py-3 flex items-center justify-between text-xs font-bold shadow-sm">
+                <span className="text-slate-600 uppercase tracking-wider">Dimensions : {L}m x {W}m</span>
+                {!isCirc ? (
+                  <span className="text-amber-600 bg-amber-50 px-3 py-1 rounded border border-amber-200">
+                    Rayon d'action EX (4H) : {maxDistLocal.toFixed(1)}m
+                  </span>
+                ) : (
+                  <span className="text-amber-600 bg-amber-50 px-3 py-1 rounded border border-amber-200">
+                    Distance max entre grilles : {maxDistCirculation}m
+                  </span>
                 )}
               </div>
             </div>
