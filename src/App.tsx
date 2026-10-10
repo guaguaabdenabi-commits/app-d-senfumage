@@ -429,8 +429,14 @@ export default function App() {
         )}
       </main>
 
-      <button onClick={() => setIsHelpOpen(true)} className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center z-40"><HelpCircle className="w-7 h-7" /></button>
+      <button onClick={() => setIsHelpOpen(true)} className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:scale-105 transition-all flex items-center justify-center z-40">
+        <HelpCircle className="w-7 h-7" />
+      </button>
+
+      {/* LA LIGNE MAGIQUE À AJOUTER EST JUSTE ICI 👇 */}
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+
     </div>
   );
 }
-// FIN ABSOLUE DU FICHIER APP.TSX - NE RIEN AJOUTER EN DESSOUS
+// FIN ABSOLUE DU FICHIER APP.TSX
