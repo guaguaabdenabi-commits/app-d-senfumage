@@ -10,20 +10,20 @@ import { ProjectSummary } from './components/ProjectSummary';
 import { RegulatoryGuideModal } from './components/RegulatoryGuideModal';
 import { InspectionChecklist } from './components/InspectionChecklist';
 import { PrintReport } from './components/PrintReport';
-import { HelpCircle, Plus, Flame, Lock, User, ArrowRight, ShieldCheck, ArrowLeft, KeyRound, UserPlus } from 'lucide-react';
+import { HelpCircle, Plus, Flame, Lock, User, ArrowRight, ShieldCheck, ArrowLeft, KeyRound, Calendar } from 'lucide-react';
 
 // ==========================================
-// 1. ÉCRAN DE CONNEXION & GESTION DES COMPTES LOCAUX
+// 1. ÉCRAN DE CONNEXION AVEC CONTRÔLE D'EXPIRATION
 // ==========================================
 
 const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [durationDays, setDurationDays] = useState<number>(30); // 30 jours par défaut (mensuel)
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Gestion de la soumission (Connexion ou Inscription)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -34,30 +34,51 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
 
     if (isRegistering) {
       if (accounts[cleanUser]) {
-        setError("Ce nom d'utilisateur existe déjà. Veuillez vous connecter.");
+        setError("Ce nom d'utilisateur existe déjà.");
         return;
       }
       if (password.length < 4) {
         setError("Le mot de passe doit contenir au moins 4 caractères.");
         return;
       }
-      // Enregistrement du compte
-      accounts[cleanUser] = password;
+
+      // Calcul de la date d'expiration (Date du jour + nombre de jours choisis)
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + Number(durationDays));
+
+      // Enregistrement du compte avec son mot de passe et sa date d'expiration
+      accounts[cleanUser] = {
+        password: password,
+        expiresAt: expiryDate.toISOString()
+      };
       localStorage.setItem('gpt_users', JSON.stringify(accounts));
-      setSuccessMsg("Compte créé avec succès ! Connectez-vous maintenant.");
+      setSuccessMsg(`Compte créé avec succès ! Valide pour ${durationDays} jours.`);
       setIsRegistering(false);
       setPassword('');
     } else {
-      // Vérification de la connexion (compte par défaut admin/admin inclus)
-      const defaultAdminUser = 'admin';
-      const defaultAdminPass = 'gpt2026';
-
-      if ((cleanUser === defaultAdminUser && password === defaultAdminPass) || (accounts[cleanUser] && accounts[cleanUser] === password)) {
+      // Compte Admin permanent par défaut
+      if (cleanUser === 'admin' && password === 'gpt2026') {
         localStorage.setItem('gpt_current_user', cleanUser);
         onLogin(cleanUser);
-      } else {
-        setError("Identifiant ou mot de passe incorrect.");
+        return;
       }
+
+      const userRecord = accounts[cleanUser];
+      if (!userRecord || userRecord.password !== password) {
+        setError("Identifiant ou mot de passe incorrect.");
+        return;
+      }
+
+      // Vérification de la date d'expiration
+      const now = new Date();
+      const expiry = new Date(userRecord.expiresAt);
+      if (now > expiry) {
+        setError(`Accès refusé : Votre abonnement a expiré le ${expiry.toLocaleDateString()}. Veuillez contacter l'administration G.P-T.`);
+        return;
+      }
+
+      localStorage.setItem('gpt_current_user', cleanUser);
+      onLogin(cleanUser);
     }
   };
 
@@ -75,7 +96,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">G.P-T Bureau d'Études</h1>
           <p className="text-sm font-medium text-amber-600 mt-1 uppercase tracking-widest">
-            {isRegistering ? "Création de compte Ingénieur" : "Portail Sécurisé Client"}
+            {isRegistering ? "Nouveau Forfait Client" : "Portail Sécurisé Client"}
           </p>
         </div>
 
@@ -100,13 +121,13 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
               <input 
                 type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
-                placeholder="Ex: bureau_etudes_a"
+                placeholder="Ex: bet_atlas"
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe personnel</label>
+            <label className="text-xs font-bold text-slate-700 uppercase">Mot de passe</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <KeyRound className="w-5 h-5 text-slate-400" />
@@ -119,8 +140,29 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
             </div>
           </div>
 
+          {isRegistering && (
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 uppercase">Durée de validité du forfait</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Calendar className="w-5 h-5 text-slate-400" />
+                </div>
+                <select 
+                  value={durationDays} 
+                  onChange={(e) => setDurationDays(Number(e.target.value))}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 transition-all outline-none"
+                >
+                  <option value={30}>30 jours (Forfait Mensuel)</option>
+                  <option value={90}>90 jours (Trimestriel)</option>
+                  <option value={365}>365 jours (Forfait Annuel)</option>
+                  <option value={7}>7 jours (Essai / Test)</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           <button type="submit" className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl hover:bg-slate-800 transition-all shadow-md group">
-            <span>{isRegistering ? "S'inscrire" : "Se connecter"}</span>
+            <span>{isRegistering ? "Enregistrer le client" : "Se connecter"}</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
 
@@ -130,7 +172,7 @@ const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
               onClick={() => { setIsRegistering(!isRegistering); setError(''); setSuccessMsg(''); }}
               className="text-xs font-bold text-amber-600 hover:text-amber-700"
             >
-              {isRegistering ? "Déjà un compte ? Connectez-vous" : "Pas de compte ? Créer un accès"}
+              {isRegistering ? "Déjà un compte ? Connectez-vous" : "+ Créer un accès client (Administration)"}
             </button>
           </div>
         </form>
@@ -152,7 +194,7 @@ const HelpModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-md transition-colors"><HelpCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6 text-sm text-slate-700">
-          <div className="space-y-2"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" /> Gestion des Projets</h3><p>Vos projets sont sauvegardés automatiquement dans votre espace personnel sécurisé.</p></div>
+          <div className="space-y-2"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" /> Gestion des Abonnements</h3><p>Chaque compte possède une date limite d'accès selon son forfait mensuel ou annuel.</p></div>
         </div>
         <div className="p-4 border-t border-slate-200 flex justify-end bg-slate-50">
           <button onClick={onClose} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">J'ai compris</button>
@@ -170,7 +212,6 @@ const INITIAL_ROOMS: RoomInput[] = [{ id: 'room-1', name: 'Zone Vente Principale
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
 
-  // Charger l'utilisateur connecté s'il existe en mémoire
   useEffect(() => {
     const savedUser = localStorage.getItem('gpt_current_user');
     if (savedUser) setCurrentUser(savedUser);
@@ -253,17 +294,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-amber-500 selection:text-white relative">
-      <Header 
-        buildingName={buildingName} 
-        onChangeBuildingName={setBuildingName} 
-        onOpenGuide={() => setIsGuideOpen(true)} 
-        onOpenChecklist={() => setIsChecklistOpen(true)} 
-        onPrint={() => setIsPrintView(true)} 
-        onAddRoom={handleAddRoom} 
-        roomCount={rooms.length} 
-      />
+      <Header buildingName={buildingName} onChangeBuildingName={setBuildingName} onOpenGuide={() => setIsGuideOpen(true)} onOpenChecklist={() => setIsChecklistOpen(true)} onPrint={() => setIsPrintView(true)} onAddRoom={handleAddRoom} roomCount={rooms.length} />
       
-      {/* Barre de déconnexion rapide et info utilisateur */}
       <div className="bg-slate-900 text-white px-4 py-1.5 text-xs flex justify-between items-center">
         <span>Connecté en tant que : <strong className="text-amber-400 uppercase">{currentUser}</strong></span>
         <button 
